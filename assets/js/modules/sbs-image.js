@@ -1,7 +1,7 @@
 
 /* ==========================================
    STEREOVISION STUDIO 3D
-   MÓDULO DE IMAGEN SBS
+   MODULO IMAGEN SBS CON GESTOS TACTILES
    ========================================== */
 
 import {
@@ -15,7 +15,21 @@ import {
   getActiveModule
 } from "../components/navigation.js";
 
+import {
+  initTouchGestures
+} from "../components/calibration.js";
+
+
+// ==========================================
+// CONFIGURACION
+// ==========================================
+
 const MODULE_ID = "sbs-image";
+
+const DEFAULT_POSITION = {
+  panX: 0,
+  panY: 0
+};
 
 const CONTROLS = [
   {
@@ -23,15 +37,13 @@ const CONTROLS = [
     label: "Zoom / Escala",
     min: 50,
     max: 200,
-    step: 1,
     unit: "%"
   },
   {
     id: "horizontal",
-    label: "Desplazamiento horizontal",
+    label: "Desplazamiento estereoscópico",
     min: -60,
     max: 60,
-    step: 1,
     unit: " px"
   },
   {
@@ -39,10 +51,28 @@ const CONTROLS = [
     label: "Alineación vertical",
     min: -40,
     max: 40,
-    step: 1,
+    unit: " px"
+  },
+  {
+    id: "panX",
+    label: "Mover imagen horizontalmente",
+    min: -250,
+    max: 250,
+    unit: " px"
+  },
+  {
+    id: "panY",
+    label: "Mover imagen verticalmente",
+    min: -250,
+    max: 250,
     unit: " px"
   }
 ];
+
+
+// ==========================================
+// REFERENCIAS
+// ==========================================
 
 const elements = {
   tools: document.getElementById("module-tools"),
@@ -52,16 +82,24 @@ const elements = {
   message: document.getElementById("studio-message")
 };
 
+
+// ==========================================
+// ESTADO DEL RENDERIZADOR
+// ==========================================
+
 let sourceImage = null;
 let canvas = null;
 let context = null;
+
 let resizeObserver = null;
+let destroyGestures = null;
+
 let initialized = false;
 let loadVersion = 0;
 
 
 // ==========================================
-// COMPROBAR MÓDULO ACTIVO
+// UTILIDADES
 // ==========================================
 
 function isActive() {
@@ -69,29 +107,40 @@ function isActive() {
 }
 
 
-// ==========================================
-// MOSTRAR MENSAJES
-// ==========================================
-
-function showMessage(message, type = "success") {
+function showMessage(message, error = false) {
   elements.message.textContent = message;
 
-  elements.message.className =
-    type === "error"
-      ? "studio-message-error"
-      : "studio-message-success";
+  elements.message.className = error
+    ? "studio-message-error"
+    : "studio-message-success";
+}
+
+
+function getCalibration() {
+  const calibration = getState().calibration;
+
+  return {
+    ...calibration,
+    panX: Number(calibration.panX) || 0,
+    panY: Number(calibration.panY) || 0
+  };
 }
 
 
 // ==========================================
-// CREAR CONTROL DESLIZANTE
+// CREAR CONTROL
 // ==========================================
 
-function createSlider(config, value) {
+function createSlider(config) {
+  const calibration = getCalibration();
+
+  const value = calibration[config.id];
+
   return `
     <div class="tool-control">
 
       <div class="control-heading">
+
         <label for="sbs-${config.id}">
           ${config.label}
         </label>
@@ -103,6 +152,7 @@ function createSlider(config, value) {
         >
           ${value}${config.unit}
         </output>
+
       </div>
 
       <input
@@ -111,7 +161,7 @@ function createSlider(config, value) {
         type="range"
         min="${config.min}"
         max="${config.max}"
-        step="${config.step}"
+        step="1"
         value="${value}"
       >
 
@@ -121,28 +171,43 @@ function createSlider(config, value) {
 
 
 // ==========================================
-// CONSTRUIR PANEL DE HERRAMIENTAS
+// CREAR HERRAMIENTAS
 // ==========================================
 
 function renderTools() {
-  const calibration = getState().calibration;
-
   elements.tools.innerHTML = `
     <div class="tool-group">
 
       <div class="tool-group-title">
         <span>CALIBRACIÓN ESTEREOSCÓPICA</span>
-        <span aria-hidden="true">◈</span>
       </div>
 
       <p class="tool-description">
-        Ajusta la visualización de ambas
-        perspectivas sin modificar el archivo.
+        Ajusta la escala y la alineación
+        entre ambas perspectivas.
       </p>
 
-      ${CONTROLS.map(config =>
-        createSlider(config, calibration[config.id])
-      ).join("")}
+      ${CONTROLS.slice(0, 3)
+        .map(createSlider)
+        .join("")}
+
+    </div>
+
+    <div class="tool-group">
+
+      <div class="tool-group-title">
+        <span>POSICIÓN Y GESTOS</span>
+      </div>
+
+      <p class="tool-description">
+        Arrastra con un dedo para mover
+        las dos vistas al mismo tiempo.
+        Pellizca con dos dedos para hacer zoom.
+      </p>
+
+      ${CONTROLS.slice(3)
+        .map(createSlider)
+        .join("")}
 
     </div>
 
@@ -162,19 +227,9 @@ function renderTools() {
         Intercambiar ojos
       </label>
 
-      <p class="tool-description"
-         style="margin-top: 12px;">
-        Invierte las perspectivas izquierda
-        y derecha cuando sea necesario.
-      </p>
-
     </div>
 
     <div class="tool-group">
-
-      <div class="tool-group-title">
-        <span>CONTROLES</span>
-      </div>
 
       <button
         id="sbs-reset"
@@ -189,16 +244,29 @@ function renderTools() {
     <div class="tool-group">
 
       <div class="file-information">
-        <strong>Recomendación visual</strong>
+        <strong>Control táctil activado</strong>
+
         <p>
-          Usa desplazamientos pequeños.
-          Si observas visión doble persistente,
-          fatiga o mareo, detén la prueba.
+          Un dedo: mover las dos imágenes.
+        </p>
+
+        <p>
+          Dos dedos: acercar o alejar.
+        </p>
+
+        <p>
+          Los desplazamientos de posición
+          no modifican la disparidad relativa
+          entre las perspectivas.
         </p>
       </div>
 
     </div>
   `;
+
+  // ========================================
+  // SLIDERS
+  // ========================================
 
   CONTROLS.forEach(config => {
     const input = document.getElementById(
@@ -215,6 +283,10 @@ function renderTools() {
     });
   });
 
+  // ========================================
+  // INTERCAMBIAR OJOS
+  // ========================================
+
   document.getElementById("sbs-swap-eyes")
     .addEventListener("change", event => {
       updateCalibration({
@@ -224,19 +296,23 @@ function renderTools() {
       drawSBS();
     });
 
+  // ========================================
+  // RESTABLECER
+  // ========================================
+
   document.getElementById("sbs-reset")
     .addEventListener("click", restoreDefaults);
 }
 
 
 // ==========================================
-// SINCRONIZAR CONTROLES
+// ACTUALIZAR CONTROLES
 // ==========================================
 
 function updateControls() {
   if (!isActive()) return;
 
-  const { calibration } = getState();
+  const calibration = getCalibration();
 
   CONTROLS.forEach(config => {
     const input = document.getElementById(
@@ -252,7 +328,8 @@ function updateControls() {
     const value = calibration[config.id];
 
     input.value = value;
-    output.textContent = `${value}${config.unit}`;
+    output.textContent =
+      `${value}${config.unit}`;
   });
 
   const swap = document.getElementById(
@@ -266,7 +343,7 @@ function updateControls() {
 
 
 // ==========================================
-// PREPARAR TAMAÑO DEL CANVAS
+// TAMAÑO DEL CANVAS
 // ==========================================
 
 function resizeCanvas() {
@@ -305,7 +382,9 @@ function resizeCanvas() {
     canvas.height = pixelHeight;
   }
 
-  context.setTransform(dpr, 0, 0, dpr, 0, 0);
+  context.setTransform(
+    dpr, 0, 0, dpr, 0, 0
+  );
 
   return { width, height };
 }
@@ -322,12 +401,16 @@ function drawEye({
   frameHeight,
   horizontalOffset,
   verticalOffset,
+  panX,
+  panY,
   scale
 }) {
-  const sourceWidth = sourceImage.naturalWidth / 2;
-  const sourceHeight = sourceImage.naturalHeight;
+  const sourceWidth =
+    sourceImage.naturalWidth / 2;
 
-  // Ajuste proporcional dentro de cada región.
+  const sourceHeight =
+    sourceImage.naturalHeight;
+
   const fit = Math.min(
     frameWidth / sourceWidth,
     frameHeight / sourceHeight
@@ -335,22 +418,27 @@ function drawEye({
 
   const factor = fit * scale;
 
-  const drawWidth = sourceWidth * factor;
-  const drawHeight = sourceHeight * factor;
+  const drawWidth =
+    sourceWidth * factor;
+
+  const drawHeight =
+    sourceHeight * factor;
 
   const x =
     destinationX +
     (frameWidth - drawWidth) / 2 +
-    horizontalOffset;
+    horizontalOffset +
+    panX;
 
   const y =
     (frameHeight - drawHeight) / 2 +
-    verticalOffset;
+    verticalOffset +
+    panY;
 
   context.save();
 
-  // Evitar que una perspectiva invada
-  // el espacio asignado al otro ojo.
+  // Recortar cada perspectiva para
+  // que no invada el otro ojo.
   context.beginPath();
 
   context.rect(
@@ -379,7 +467,7 @@ function drawEye({
 
 
 // ==========================================
-// RENDERIZAR IMAGEN SBS
+// DIBUJAR SBS
 // ==========================================
 
 function drawSBS() {
@@ -397,11 +485,13 @@ function drawSBS() {
   if (!dimensions) return;
 
   const { width, height } = dimensions;
-  const { calibration } = getState();
 
   const eyeWidth = width / 2;
 
+  const calibration = getCalibration();
+
   const originalLeft = 0;
+
   const originalRight =
     sourceImage.naturalWidth / 2;
 
@@ -413,23 +503,32 @@ function drawSBS() {
     ? originalLeft
     : originalRight;
 
-  // El desplazamiento es relativo:
-  // cada perspectiva se mueve en
-  // dirección opuesta a la otra.
   const horizontal =
     calibration.horizontal / 2;
 
   const vertical =
     calibration.vertical / 2;
 
-  const scale = calibration.scale / 100;
+  const scale =
+    calibration.scale / 100;
 
-  context.clearRect(0, 0, width, height);
+  const panX = calibration.panX;
+  const panY = calibration.panY;
+
+  context.clearRect(
+    0, 0, width, height
+  );
 
   context.fillStyle = "#05060c";
-  context.fillRect(0, 0, width, height);
 
-  // VISTA IZQUIERDA
+  context.fillRect(
+    0, 0, width, height
+  );
+
+  // ========================================
+  // OJO IZQUIERDO
+  // ========================================
+
   drawEye({
     sourceX: leftSource,
     destinationX: 0,
@@ -437,10 +536,15 @@ function drawSBS() {
     frameHeight: height,
     horizontalOffset: -horizontal,
     verticalOffset: -vertical,
+    panX,
+    panY,
     scale
   });
 
-  // VISTA DERECHA
+  // ========================================
+  // OJO DERECHO
+  // ========================================
+
   drawEye({
     sourceX: rightSource,
     destinationX: eyeWidth,
@@ -448,11 +552,17 @@ function drawSBS() {
     frameHeight: height,
     horizontalOffset: horizontal,
     verticalOffset: vertical,
+    panX,
+    panY,
     scale
   });
 
-  // Separador central.
+  // ========================================
+  // SEPARADOR CENTRAL
+  // ========================================
+
   context.fillStyle = "#292d42";
+
   context.fillRect(
     eyeWidth - 0.5,
     0,
@@ -460,22 +570,89 @@ function drawSBS() {
     height
   );
 
-  // Etiquetas visuales.
-  context.font = "600 12px Inter, sans-serif";
+  // ========================================
+  // ETIQUETAS
+  // ========================================
+
+  context.font =
+    "600 12px Inter, sans-serif";
+
   context.textBaseline = "top";
 
-  context.fillStyle = "rgba(0, 0, 0, 0.65)";
-  context.fillRect(12, 12, 32, 27);
-  context.fillRect(eyeWidth + 12, 12, 32, 27);
+  context.fillStyle =
+    "rgba(0, 0, 0, 0.65)";
+
+  context.fillRect(
+    12, 12, 32, 27
+  );
+
+  context.fillRect(
+    eyeWidth + 12,
+    12,
+    32,
+    27
+  );
 
   context.fillStyle = "#ffffff";
-  context.fillText("L", 23, 19);
-  context.fillText("R", eyeWidth + 23, 19);
+
+  context.fillText(
+    "L", 23, 19
+  );
+
+  context.fillText(
+    "R", eyeWidth + 23, 19
+  );
 }
 
 
 // ==========================================
-// RESTABLECER CALIBRACIÓN
+// APLICAR GESTOS TACTILES
+// ==========================================
+
+function enableTouchGestures() {
+  if (!canvas) return;
+
+  if (destroyGestures) {
+    destroyGestures();
+    destroyGestures = null;
+  }
+
+  destroyGestures = initTouchGestures({
+    element: canvas,
+
+    minScale: 50,
+    maxScale: 200,
+    maxPan: 250,
+
+    getTransform: () => {
+      const calibration = getCalibration();
+
+      return {
+        scale: calibration.scale,
+        panX: calibration.panX,
+        panY: calibration.panY
+      };
+    },
+
+    onChange: values => {
+      if (!isActive() || !sourceImage) {
+        return;
+      }
+
+      updateCalibration(values);
+
+      // Reflejar gestos en los sliders.
+      updateControls();
+
+      // Dibujar sin recargar archivo.
+      drawSBS();
+    }
+  });
+}
+
+
+// ==========================================
+// RESTABLECER
 // ==========================================
 
 function restoreDefaults() {
@@ -483,21 +660,35 @@ function restoreDefaults() {
 
   resetCalibration();
 
+  // Los nuevos valores de posicion
+  // tambien deben regresar a cero.
+  // Se establecen explicitamente porque
+  // los valores adicionales se fusionan
+  // con el estado de calibracion actual.
+  updateCalibration({
+    ...DEFAULT_POSITION
+  });
+
   updateControls();
   drawSBS();
 
   showMessage(
-    "Calibración restablecida: escala 100 %, desplazamientos 0 e intercambio desactivado."
+    "Calibración y posición restablecidas."
   );
 }
 
 
 // ==========================================
-// LIMPIAR RECURSOS DEL MÓDULO
+// LIMPIAR RECURSOS
 // ==========================================
 
 function clearSBS() {
   loadVersion++;
+
+  if (destroyGestures) {
+    destroyGestures();
+    destroyGestures = null;
+  }
 
   if (resizeObserver) {
     resizeObserver.disconnect();
@@ -516,28 +707,33 @@ function clearSBS() {
 
 
 // ==========================================
-// CARGAR VISTA SBS
+// PREPARAR IMAGEN SBS
 // ==========================================
 
 async function prepareSBS() {
   if (!isActive()) return;
 
-  const version = ++loadVersion;
+  // Evitar conservar controles y eventos
+  // de una imagen anterior.
+  clearSBS();
 
+  const version = ++loadVersion;
   const state = getState();
 
-  if (!state.file || state.status !== "ready") {
+  if (
+    !state.file ||
+    state.status !== "ready"
+  ) {
     return;
   }
 
-  // Obtener la vista previa que ya preparó
-  // el gestor de archivos.
-  const image = elements.renderer.querySelector("img");
+  const image =
+    elements.renderer.querySelector("img");
 
   if (!image) {
     showMessage(
-      "No se encontró una imagen válida.",
-      "error"
+      "No se encontró la imagen importada.",
+      true
     );
     return;
   }
@@ -545,6 +741,8 @@ async function prepareSBS() {
   try {
     await image.decode();
 
+    // Descartar cargas antiguas si el
+    // usuario cambió el archivo o el módulo.
     if (
       version !== loadVersion ||
       !isActive() ||
@@ -553,23 +751,37 @@ async function prepareSBS() {
       return;
     }
 
-    if (image.naturalWidth < 2) {
+    if (
+      image.naturalWidth < 2 ||
+      image.naturalHeight < 1
+    ) {
       throw new Error(
-        "La imagen es demasiado pequeña para dividirla."
+        "La imagen no tiene dimensiones válidas para SBS."
       );
     }
 
     sourceImage = image;
 
-    canvas = document.createElement("canvas");
+    canvas =
+      document.createElement("canvas");
 
     canvas.id = "sbs-canvas";
+
     canvas.setAttribute(
       "aria-label",
-      "Visualizador estereoscópico SBS"
+      "Visualizador SBS táctil"
     );
 
-    context = canvas.getContext("2d");
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.maxWidth = "none";
+    canvas.style.maxHeight = "none";
+
+    context = canvas.getContext(
+      "2d",
+      { alpha: false }
+    );
 
     if (!context) {
       throw new Error(
@@ -577,54 +789,70 @@ async function prepareSBS() {
       );
     }
 
-    // Sustituir la vista previa original
-    // por el visualizador real de dos ojos.
-    elements.renderer.replaceChildren(canvas);
+    // Reemplazar la vista previa
+    // por el editor SBS real.
+    elements.renderer.replaceChildren(
+      canvas
+    );
+
+    // Habilitar interaccion directa.
+    elements.renderer.classList.add(
+      "interactive"
+    );
 
     renderTools();
 
     elements.reset.disabled = false;
-
-    // El modo VR se habilitará cuando
-    // implementemos vr-viewer.js.
     elements.vr.disabled = false;
 
-    resizeObserver = new ResizeObserver(() => {
-      drawSBS();
-    });
+    resizeObserver = new ResizeObserver(
+      () => {
+        drawSBS();
+      }
+    );
 
-    resizeObserver.observe(elements.renderer);
+    resizeObserver.observe(
+      elements.renderer
+    );
 
     updateControls();
+
+    enableTouchGestures();
+
     drawSBS();
 
     showMessage(
-      "Imagen SBS preparada. Puedes calibrar ambas perspectivas."
+      "Imagen SBS lista. Arrastra con un dedo o pellizca con dos."
     );
 
     console.log(
-      "[SBS] Visualizador listo:",
+      "[SBS] Gestos táctiles activados:",
       state.fileName
     );
 
   } catch (error) {
-    if (version !== loadVersion) return;
+    if (version !== loadVersion) {
+      return;
+    }
 
     clearSBS();
 
     showMessage(
       error.message ||
       "No se pudo preparar la imagen SBS.",
-      "error"
+      true
     );
 
-    console.error("[SBS]", error);
+    console.error(
+      "[StereoVision SBS]",
+      error
+    );
   }
 }
 
 
 // ==========================================
-// INICIALIZAR MÓDULO
+// INICIALIZAR MODULO
 // ==========================================
 
 export function initSBSImage() {
@@ -632,6 +860,7 @@ export function initSBSImage() {
 
   initialized = true;
 
+  // Nueva imagen importada.
   document.addEventListener(
     "studio:file-loaded",
     event => {
@@ -641,6 +870,7 @@ export function initSBSImage() {
     }
   );
 
+  // Boton Restablecer superior.
   elements.reset.addEventListener(
     "click",
     () => {
@@ -650,18 +880,21 @@ export function initSBSImage() {
     }
   );
 
+  // Cambio de modulo o regreso a Inicio.
   document.addEventListener(
     "studio:before-module-change",
-    clearSBS
+    () => {
+      clearSBS();
+
+      elements.renderer.classList.remove(
+        "interactive"
+      );
+    }
   );
 
-  // Desactivar el editor mientras se
-  // sustituye o invalida un archivo.
+  // Al reemplazar o invalidar un archivo.
   subscribe(state => {
-    if (
-      !sourceImage &&
-      !canvas
-    ) {
+    if (!sourceImage && !canvas) {
       return;
     }
 
@@ -672,12 +905,17 @@ export function initSBSImage() {
     ) {
       clearSBS();
 
+      elements.renderer.classList.remove(
+        "interactive"
+      );
+
       if (isActive()) {
         elements.tools.innerHTML = `
           <div class="tool-placeholder">
             <p>
               Importa una imagen SBS para
-              activar las herramientas de calibración.
+              activar la calibración y
+              los gestos táctiles.
             </p>
           </div>
         `;
@@ -686,6 +924,6 @@ export function initSBSImage() {
   });
 
   console.log(
-    "[StereoVision] Módulo Imagen SBS inicializado."
+    "[StereoVision] Imagen SBS táctil inicializada."
   );
 }

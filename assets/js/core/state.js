@@ -1,9 +1,14 @@
 
 /* ==========================================
    STEREOVISION STUDIO 3D
-   ESTADO CENTRAL DE LA APLICACIÓN
+   ESTADO CENTRAL Y PREFERENCIAS
    ========================================== */
 
+// ==========================================
+// CONFIGURACION INICIAL
+// ==========================================
+
+// Ajustes independientes para cada archivo.
 export const DEFAULT_CALIBRATION = Object.freeze({
   scale: 100,
   horizontal: 0,
@@ -13,19 +18,133 @@ export const DEFAULT_CALIBRATION = Object.freeze({
   swapEyes: false
 });
 
-const initialState = () => ({
-  module: null,
-  file: null,
-  fileName: null,
-  fileType: null,
-  fileSize: 0,
-  status: "empty",
-  loading: false,
-  vrActive: false,
-  calibration: { ...DEFAULT_CALIBRATION }
+// Configuración física de referencia del visor.
+// Se conserva entre archivos y sesiones.
+export const DEFAULT_DEVICE_SETTINGS = Object.freeze({
+  lensSpacingMm: 64
 });
 
-let state = initialState();
+export const DEVICE_LIMITS = Object.freeze({
+  minLensSpacingMm: 55,
+  maxLensSpacingMm: 75
+});
+
+const STORAGE_KEY =
+  "stereovision-studio-3d-device-v1";
+
+
+// ==========================================
+// VALIDAR CONFIGURACION DE GAFAS
+// ==========================================
+
+function normalizeDeviceSettings(settings = {}) {
+  const numericValue = Number(settings.lensSpacingMm);
+
+  const validValue = Number.isFinite(numericValue)
+    ? numericValue
+    : DEFAULT_DEVICE_SETTINGS.lensSpacingMm;
+
+  const limitedValue = Math.max(
+    DEVICE_LIMITS.minLensSpacingMm,
+    Math.min(
+      DEVICE_LIMITS.maxLensSpacingMm,
+      validValue
+    )
+  );
+
+  return {
+    lensSpacingMm: Math.round(limitedValue)
+  };
+}
+
+
+// ==========================================
+// CARGAR PREFERENCIAS GUARDADAS
+// ==========================================
+
+function loadDeviceSettings() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      return { ...DEFAULT_DEVICE_SETTINGS };
+    }
+
+    const parsed = JSON.parse(saved);
+
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      return { ...DEFAULT_DEVICE_SETTINGS };
+    }
+
+    return normalizeDeviceSettings(parsed);
+
+  } catch (error) {
+    console.warn(
+      "[StereoVision] No se pudieron leer las preferencias:",
+      error
+    );
+
+    return { ...DEFAULT_DEVICE_SETTINGS };
+  }
+}
+
+
+// ==========================================
+// GUARDAR PREFERENCIAS
+// ==========================================
+
+function saveDeviceSettings(settings) {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(settings)
+    );
+
+    return true;
+
+  } catch (error) {
+    console.warn(
+      "[StereoVision] No se pudieron guardar las preferencias:",
+      error
+    );
+
+    return false;
+  }
+}
+
+
+// ==========================================
+// ESTADO CENTRAL
+// ==========================================
+
+function initialState(deviceSettings) {
+  return {
+    module: null,
+
+    file: null,
+    fileName: null,
+    fileType: null,
+    fileSize: 0,
+
+    status: "empty",
+    loading: false,
+    vrActive: false,
+
+    calibration: {
+      ...DEFAULT_CALIBRATION
+    },
+
+    deviceSettings: {
+      ...deviceSettings
+    }
+  };
+}
+
+let state = initialState(loadDeviceSettings());
 
 const listeners = new Set();
 
@@ -37,7 +156,14 @@ const listeners = new Set();
 export function getState() {
   return {
     ...state,
-    calibration: { ...state.calibration }
+
+    calibration: {
+      ...state.calibration
+    },
+
+    deviceSettings: {
+      ...state.deviceSettings
+    }
   };
 }
 
@@ -49,33 +175,36 @@ export function getState() {
 function notify() {
   const snapshot = getState();
 
-  listeners.forEach((listener) => {
+  for (const listener of listeners) {
     try {
       listener(snapshot);
+
     } catch (error) {
       console.error(
-        "[StereoVision] Error en listener:",
+        "[StereoVision] Error en suscripción:",
         error
       );
     }
-  });
+  }
 }
 
 
 // ==========================================
-// SUSCRIPCIONES
+// SUSCRIBIRSE A CAMBIOS
 // ==========================================
 
 export function subscribe(listener) {
   if (typeof listener !== "function") {
     throw new TypeError(
-      "El listener debe ser una función."
+      "La suscripción requiere una función."
     );
   }
 
   listeners.add(listener);
 
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 
@@ -83,38 +212,59 @@ export function subscribe(listener) {
 // ACTUALIZAR ESTADO
 // ==========================================
 
-export function setState(updates) {
+export function setState(updates = {}) {
+  const {
+    deviceSettings,
+    calibration,
+    ...otherUpdates
+  } = updates;
+
   state = {
     ...state,
-    ...updates,
-    calibration: updates.calibration
+    ...otherUpdates,
+
+    calibration: calibration
       ? {
           ...state.calibration,
-          ...updates.calibration
+          ...calibration
         }
-      : state.calibration
+      : state.calibration,
+
+    deviceSettings: deviceSettings
+      ? normalizeDeviceSettings({
+          ...state.deviceSettings,
+          ...deviceSettings
+        })
+      : state.deviceSettings
   };
+
+  if (deviceSettings) {
+    saveDeviceSettings(state.deviceSettings);
+  }
 
   notify();
 }
 
 
 // ==========================================
-// CAMBIAR MÓDULO
+// CAMBIAR MODULO
 // ==========================================
 
 export function setModule(moduleId) {
-  state = {
-    ...initialState(),
-    module: moduleId
-  };
+  // Se limpia el archivo y la calibración,
+  // pero se conservan las preferencias
+  // físicas del visor.
+
+  state = initialState(state.deviceSettings);
+
+  state.module = moduleId;
 
   notify();
 }
 
 
 // ==========================================
-// REGISTRAR ARCHIVO
+// REGISTRAR ARCHIVO ACTIVO
 // ==========================================
 
 export function setActiveFile(file) {
@@ -129,10 +279,14 @@ export function setActiveFile(file) {
     fileName: file.name,
     fileType: file.type,
     fileSize: file.size,
+
     status: "ready",
     loading: false,
     vrActive: false,
-    calibration: { ...DEFAULT_CALIBRATION }
+
+    calibration: {
+      ...DEFAULT_CALIBRATION
+    }
   });
 }
 
@@ -142,11 +296,17 @@ export function setActiveFile(file) {
 // ==========================================
 
 export function setLoading(loading) {
+  const isLoading = Boolean(loading);
+
   setState({
-    loading: Boolean(loading),
-    status: loading ? "loading" : state.status
+    loading: isLoading,
+
+    status: isLoading
+      ? "loading"
+      : state.status
   });
 }
+
 
 export function setError() {
   setState({
@@ -157,24 +317,55 @@ export function setError() {
 
 
 // ==========================================
-// CALIBRACIÓN
+// ACTUALIZAR CALIBRACION DEL CONTENIDO
 // ==========================================
 
-export function updateCalibration(updates) {
+export function updateCalibration(updates = {}) {
   setState({
     calibration: updates
   });
 }
 
+
+// ==========================================
+// RESTABLECER CALIBRACION DEL CONTENIDO
+// ==========================================
+
 export function resetCalibration() {
   setState({
-    calibration: { ...DEFAULT_CALIBRATION }
+    calibration: {
+      ...DEFAULT_CALIBRATION
+    }
   });
 }
 
 
 // ==========================================
-// MODO VR
+// PREFERENCIAS GENERALES DEL VISOR
+// ==========================================
+
+export function updateDeviceSettings(updates = {}) {
+  setState({
+    deviceSettings: updates
+  });
+}
+
+
+// ==========================================
+// RESTABLECER PREFERENCIAS DEL VISOR
+// ==========================================
+
+export function resetDeviceSettings() {
+  setState({
+    deviceSettings: {
+      ...DEFAULT_DEVICE_SETTINGS
+    }
+  });
+}
+
+
+// ==========================================
+// ESTADO DEL MODO VR
 // ==========================================
 
 export function setVRActive(active) {
@@ -185,7 +376,7 @@ export function setVRActive(active) {
 
 
 // ==========================================
-// LIMPIAR CONTENIDO
+// LIMPIAR ARCHIVO ACTIVO
 // ==========================================
 
 export function clearActiveFile() {
@@ -194,19 +385,34 @@ export function clearActiveFile() {
     fileName: null,
     fileType: null,
     fileSize: 0,
+
     status: "empty",
     loading: false,
     vrActive: false,
-    calibration: { ...DEFAULT_CALIBRATION }
+
+    calibration: {
+      ...DEFAULT_CALIBRATION
+    }
   });
 }
 
 
 // ==========================================
-// REINICIAR APLICACIÓN
+// REINICIAR APLICACION
 // ==========================================
 
 export function resetState() {
-  state = initialState();
+  // Las preferencias generales se conservan.
+  state = initialState(state.deviceSettings);
+
   notify();
+}
+
+
+// ==========================================
+// OBTENER PREFERENCIA FISICA
+// ==========================================
+
+export function getLensSpacingMm() {
+  return state.deviceSettings.lensSpacingMm;
 }

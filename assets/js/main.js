@@ -34,6 +34,10 @@ import {
   initVRViewer
 } from "./components/vr-viewer.js";
 
+import {
+  initCalibrationSettings
+} from "./components/calibration.js";
+
 
 // ==========================================
 // EVENTOS GENERALES
@@ -41,11 +45,16 @@ import {
 
 function initStudioEvents() {
 
+  // Cambiar entre menú y módulos.
   document.addEventListener(
     "studio:module-change",
     event => {
+
       const moduleId = event.detail.module;
 
+      // Restablece el contenido anterior,
+      // pero conserva la configuración
+      // general de las gafas.
       setModule(moduleId);
 
       console.log(
@@ -55,11 +64,16 @@ function initStudioEvents() {
     }
   );
 
+  // Registrar una importación exitosa.
   document.addEventListener(
     "studio:file-loaded",
     event => {
-      const { file, module, metadata } =
-        event.detail;
+
+      const {
+        file,
+        module,
+        metadata
+      } = event.detail;
 
       console.log(
         "[StereoVision] Archivo importado:",
@@ -76,11 +90,13 @@ function initStudioEvents() {
 
 
 // ==========================================
-// OBSERVAR ESTADO
+// OBSERVAR CAMBIOS DE ESTADO
 // ==========================================
 
 function initStateObserver() {
+
   subscribe(state => {
+
     console.debug(
       "[StereoVision] Estado:",
       {
@@ -88,34 +104,47 @@ function initStateObserver() {
         status: state.status,
         file: state.fileName,
         vrActive: state.vrActive,
-        calibration: state.calibration
+        calibration: state.calibration,
+        deviceSettings: state.deviceSettings
       }
     );
   });
+
 }
 
 
 // ==========================================
-// INICIAR APLICACIÓN
+// INICIAR APLICACION
 // ==========================================
 
 function initApp() {
 
-  // Estado general y eventos.
+  // Eventos generales.
   initStudioEvents();
+
+  // Estado central.
   initStateObserver();
 
-  // Navegación e importación.
+  // Navegación.
   initNavigation();
+
+  // Importación multimedia.
   initFileManager();
 
-  // Módulos multimedia.
+  // Módulo 1: Anaglifo.
   initAnaglyph();
+
+  // Módulo 2: Imagen SBS.
   initSBSImage();
+
+  // Módulo 3: Video SBS.
   initSBSVideo();
 
-  // Visor móvil.
+  // Modo VR.
   initVRViewer();
+
+  // Preferencias generales de gafas.
+  initCalibrationSettings();
 
   console.log(
     "=================================="
@@ -130,7 +159,7 @@ function initApp() {
   );
 
   console.log(
-    " Importación: activa"
+    " Importación multimedia: activa"
   );
 
   console.log(
@@ -150,6 +179,10 @@ function initApp() {
   );
 
   console.log(
+    " Configuración persistente: activa"
+  );
+
+  console.log(
     "=================================="
   );
 
@@ -161,15 +194,18 @@ function initApp() {
 
 
 // ==========================================
-// EJECUCIÓN
+// EJECUCION
 // ==========================================
 
 if (document.readyState === "loading") {
+
   document.addEventListener(
     "DOMContentLoaded",
     initApp,
     { once: true }
   );
+
 } else {
+
   initApp();
 }
