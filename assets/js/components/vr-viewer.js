@@ -216,7 +216,7 @@ function drawEye({
 function drawVR() {
   if (!active || !canvas || !context) return;
 
-  const source = sourceImage || sourceVideo;
+  const source = sourceImage?.source || sourceVideo;
 
   if (!source) return;
 
