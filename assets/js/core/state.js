@@ -421,4 +421,3 @@ export function resetState() {
 export function getLensSpacingMm() {
   return state.deviceSettings.lensSpacingMm;
 }
-F
