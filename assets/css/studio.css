@@ -1,0 +1,908 @@
+
+/* ==========================================
+   STEREOVISION STUDIO 3D
+   EDITOR PROFESIONAL
+   ========================================== */
+
+/* ==========================================
+   PANTALLA DEL EDITOR
+   ========================================== */
+
+.studio-screen {
+  width: 100%;
+  min-height: calc(100vh - 145px);
+
+  display: flex;
+  flex-direction: column;
+
+  background: #0b0d17;
+  color: var(--text);
+}
+
+/* ==========================================
+   BARRA SUPERIOR
+   ========================================== */
+
+.studio-toolbar {
+  min-height: 64px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 14px;
+  padding: 12px 25px;
+
+  background: #141725;
+  border-bottom: 1px solid var(--border);
+}
+
+.studio-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.studio-breadcrumb strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.breadcrumb-divider {
+  color: var(--primary);
+}
+
+.studio-toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.file-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.file-status::before {
+  content: "";
+
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+  background: var(--subtle);
+}
+
+/* ==========================================
+   DISTRIBUCIÓN DEL STUDIO
+   ========================================== */
+
+.studio-layout {
+  width: 100%;
+
+  display: grid;
+  grid-template-columns: 305px minmax(0, 1fr);
+
+  flex: 1;
+  min-height: 650px;
+}
+
+/* ==========================================
+   PANEL IZQUIERDO
+   ========================================== */
+
+.studio-sidebar {
+  min-width: 0;
+
+  background: #161927;
+  border-right: 1px solid var(--border);
+
+  display: flex;
+  flex-direction: column;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.panel-heading {
+  min-height: 55px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 22px;
+
+  border-bottom: 1px solid var(--border);
+
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.panel-heading span:last-child {
+  color: var(--primary);
+  font-size: 19px;
+}
+
+/* ==========================================
+   SECCIONES DE HERRAMIENTAS
+   ========================================== */
+
+.tool-section {
+  padding: 25px 21px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tool-section h3 {
+  margin: 0 0 12px;
+
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tool-description {
+  margin: 0 0 20px;
+
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+/* ==========================================
+   IMPORTACIÓN
+   ========================================== */
+
+.btn-import {
+  width: 100%;
+  min-height: 47px;
+
+  background: var(--primary-soft);
+  border: 1px dashed rgba(155, 134, 255, .55);
+
+  color: #c3b7ff;
+}
+
+.btn-import:hover:not(:disabled) {
+  background: rgba(155, 134, 255, .2);
+  border-color: var(--primary);
+}
+
+.file-information {
+  margin-top: 15px;
+  padding: 12px;
+
+  background: #101320;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+
+  color: var(--muted);
+  font-size: 11px;
+
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================
+   PANEL DINÁMICO
+   ========================================== */
+
+.module-tools {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-placeholder {
+  min-height: 200px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  gap: 13px;
+  padding: 25px;
+
+  text-align: center;
+}
+
+.tool-placeholder span {
+  color: var(--primary);
+  font-size: 38px;
+  opacity: .7;
+}
+
+.tool-placeholder p {
+  max-width: 200px;
+
+  margin: 0;
+  color: var(--subtle);
+
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* ==========================================
+   CONTROLES DE EDICIÓN
+   PARA LOS MÓDULOS JAVASCRIPT
+   ========================================== */
+
+.tool-group {
+  padding: 21px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tool-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin: 0 0 20px;
+
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tool-control {
+  margin-bottom: 22px;
+}
+
+.tool-control:last-child {
+  margin-bottom: 0;
+}
+
+.control-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.control-heading label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.control-value {
+  min-width: 48px;
+
+  padding: 5px 8px;
+
+  color: var(--primary);
+  background: var(--primary-soft);
+
+  border-radius: 6px;
+
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* SLIDERS */
+
+.tool-control input[type="range"],
+.studio-range {
+  width: 100%;
+  height: 5px;
+
+  appearance: none;
+  -webkit-appearance: none;
+
+  border-radius: 100px;
+  background: #383d56;
+
+  cursor: pointer;
+}
+
+.tool-control input[type="range"]::-webkit-slider-thumb,
+.studio-range::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+
+  appearance: none;
+  -webkit-appearance: none;
+
+  background: var(--primary);
+  border: 3px solid #eee9ff;
+  border-radius: 50%;
+
+  box-shadow: 0 0 10px rgba(155, 134, 255, .3);
+}
+
+.tool-control input[type="range"]::-moz-range-thumb,
+.studio-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+
+  background: var(--primary);
+  border: 3px solid #eee9ff;
+  border-radius: 50%;
+
+  cursor: pointer;
+}
+
+/* SELECTORES */
+
+.studio-select {
+  width: 100%;
+
+  padding: 12px;
+
+  background: #101320;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+
+  color: var(--text);
+  outline: none;
+}
+
+.studio-select:focus {
+  border-color: var(--primary);
+}
+
+/* CHECKBOXES */
+
+.studio-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  color: var(--muted);
+  font-size: 12px;
+
+  cursor: pointer;
+}
+
+.studio-checkbox input {
+  width: 16px;
+  height: 16px;
+
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* BOTONES DE HERRAMIENTAS */
+
+.tool-button {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+  padding: 12px;
+
+  background: #23273a;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12px;
+
+  transition: background .2s ease;
+}
+
+.tool-button:hover:not(:disabled) {
+  background: #303650;
+}
+
+/* ==========================================
+   ZONA CENTRAL
+   ========================================== */
+
+.studio-main {
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  background: #0c0e18;
+}
+
+/* ==========================================
+   ENCABEZADO DEL VISUALIZADOR
+   ========================================== */
+
+.viewport-header {
+  min-height: 49px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 12px;
+  padding: 0 23px;
+
+  background: #111421;
+  border-bottom: 1px solid var(--border);
+}
+
+.viewport-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: var(--muted);
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.viewport-indicator {
+  width: 7px;
+  height: 7px;
+
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+#viewport-mode {
+  color: var(--subtle);
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+/* ==========================================
+   ÁREA DE VISUALIZACIÓN
+   ========================================== */
+
+.studio-viewport {
+  width: 100%;
+  min-height: 440px;
+
+  flex: 1;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  position: relative;
+  overflow: hidden;
+
+  background-color: #090b13;
+
+  background-image:
+    linear-gradient(
+      45deg,
+      #10121d 25%,
+      transparent 25%
+    ),
+    linear-gradient(
+      -45deg,
+      #10121d 25%,
+      transparent 25%
+    ),
+    linear-gradient(
+      45deg,
+      transparent 75%,
+      #10121d 75%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 75%,
+      #10121d 75%
+    );
+
+  background-size: 32px 32px;
+
+  background-position:
+    0 0,
+    0 16px,
+    16px -16px,
+    -16px 0;
+}
+
+/* ==========================================
+   ESTADO SIN ARCHIVO
+   ========================================== */
+
+.viewport-empty {
+  max-width: 450px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 35px 20px;
+
+  text-align: center;
+
+  position: relative;
+  z-index: 1;
+}
+
+.empty-icon {
+  width: 92px;
+  height: 92px;
+
+  display: grid;
+  place-items: center;
+
+  margin-bottom: 23px;
+
+  background: rgba(155, 134, 255, .08);
+  border: 1px solid rgba(155, 134, 255, .22);
+  border-radius: 24px;
+
+  color: var(--primary);
+  font-size: 45px;
+}
+
+.viewport-empty h3 {
+  margin: 0 0 10px;
+
+  color: var(--text);
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.viewport-empty p {
+  max-width: 300px;
+
+  margin: 0;
+
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+/* ==========================================
+   RENDERIZADOR
+   ========================================== */
+
+.media-renderer {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Cuando haya un archivo, JavaScript
+   gestionará el contenido del renderizador. */
+
+.media-renderer canvas,
+.media-renderer img,
+.media-renderer video {
+  display: block;
+
+  max-width: 100%;
+  max-height: 100%;
+
+  object-fit: contain;
+}
+
+.media-renderer canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Superficies que requieran interacción */
+
+.media-renderer.interactive {
+  pointer-events: auto;
+}
+
+/* ==========================================
+   VISTAS ESTEREOSCÓPICAS SBS
+   ========================================== */
+
+.sbs-viewer {
+  width: 100%;
+  height: 100%;
+
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  overflow: hidden;
+}
+
+.sbs-eye-view {
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+  position: relative;
+
+  background: #05060c;
+}
+
+.sbs-eye-view:first-child {
+  border-right: 1px solid #292d42;
+}
+
+.sbs-eye-label {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+
+  padding: 5px 9px;
+
+  background: rgba(0, 0, 0, .55);
+  border-radius: 6px;
+
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* ==========================================
+   CONTROLES DE VIDEO
+   ========================================== */
+
+.media-controls {
+  min-height: 64px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-wrap: wrap;
+  gap: 13px;
+
+  padding: 14px 22px;
+
+  background: #151827;
+  border-top: 1px solid var(--border);
+}
+
+.media-controls:empty {
+  min-height: 48px;
+}
+
+.video-control-button {
+  min-width: 38px;
+  height: 38px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #292e43;
+  border: 1px solid #3c425c;
+  border-radius: 9px;
+
+  color: var(--text);
+}
+
+.video-control-button:hover:not(:disabled) {
+  background: #3a4261;
+}
+
+.video-play-button {
+  background: var(--primary);
+  color: #11101c;
+}
+
+.video-progress {
+  flex: 1;
+  min-width: 100px;
+  accent-color: var(--primary);
+}
+
+.video-volume {
+  width: 90px;
+  accent-color: var(--primary);
+}
+
+.video-time {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ==========================================
+   BARRA DE ESTADO INFERIOR
+   ========================================== */
+
+.studio-statusbar {
+  min-height: 35px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  flex-wrap: wrap;
+
+  gap: 10px;
+  padding: 8px 18px;
+
+  background: #111421;
+  border-top: 1px solid var(--border);
+
+  color: var(--subtle);
+  font-size: 10px;
+}
+
+#active-file-name {
+  overflow-wrap: anywhere;
+}
+
+#studio-message {
+  color: var(--primary);
+}
+
+/* ==========================================
+   MENSAJES DE ESTADO
+   ========================================== */
+
+.studio-message-error {
+  color: var(--red) !important;
+}
+
+.studio-message-success {
+  color: var(--success) !important;
+}
+
+.studio-message-warning {
+  color: #f5c66d !important;
+}
+
+/* ==========================================
+   PANTALLA VR
+   ========================================== */
+
+.vr-screen {
+  position: fixed;
+  inset: 0;
+
+  z-index: 1000;
+
+  background: #000000;
+  overflow: hidden;
+}
+
+.vr-container {
+  width: 100%;
+  height: 100%;
+
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  background: #000;
+  overflow: hidden;
+}
+
+.vr-eye {
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+  position: relative;
+}
+
+.vr-eye canvas,
+.vr-eye img,
+.vr-eye video {
+  max-width: 100%;
+  max-height: 100%;
+
+  object-fit: contain;
+}
+
+.btn-exit-vr {
+  position: fixed;
+
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+
+  z-index: 1100;
+
+  padding: 10px 16px;
+
+  border: 1px solid rgba(255, 255, 255, .35);
+  border-radius: 9px;
+
+  background: rgba(15, 17, 27, .86);
+  color: #ffffff;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  touch-action: manipulation;
+}
+
+.btn-exit-vr:hover {
+  background: rgba(65, 65, 95, .9);
+}
+
+/* ==========================================
+   MENSAJE DE ORIENTACIÓN
+   ========================================== */
+
+.vr-orientation-message {
+  position: fixed;
+  inset: 0;
+
+  z-index: 1050;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 35px;
+
+  background: rgba(8, 9, 17, .96);
+
+  color: #ffffff;
+  text-align: center;
+
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
+/* ==========================================
+   ESTADO DE PANTALLA COMPLETA
+   ========================================== */
+
+.vr-screen:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+}
+
+.vr-screen:-webkit-full-screen {
+  width: 100vw;
+  height: 100dvh;
+}
+
+/* ==========================================
+   INDICADORES DE CARGA
+   ========================================== */
+
+.studio-loading {
+  width: 38px;
+  height: 38px;
+
+  border: 3px solid rgba(155, 134, 255, .2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+
+  animation: studio-spin .8s linear infinite;
+}
+
+@keyframes studio-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-loading {
+    animation-duration: 2s;
+  }
+}

@@ -1,0 +1,41 @@
+
+# ==========================================
+# STEREOVISION STUDIO 3D
+# ARCHIVOS EXCLUIDOS DE GIT
+# ==========================================
+
+# Variables de entorno y credenciales
+.env
+.env.*
+!.env.example
+
+# Dependencias (si se instalan posteriormente)
+node_modules/
+
+# Archivos temporales
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Configuración local del editor
+.vscode/
+.idea/
+
+# Archivos de Python (si se usan herramientas auxiliares)
+__pycache__/
+*.pyc
+
+# Carpetas temporales
+temp/
+tmp/
+
+# Archivos comprimidos de respaldo
+*.zip
+*.rar
+*.7z

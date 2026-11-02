@@ -1,0 +1,594 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <meta name="theme-color" content="#0b0d17">
+
+  <meta name="description"
+        content="StereoVision Studio 3D: editor web para visualizar y calibrar imágenes anaglifo, imágenes SBS y videos estereoscópicos.">
+
+  <title>StereoVision Studio 3D</title>
+
+  <link rel="preconnect"
+        href="https://fonts.googleapis.com">
+
+  <link rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <link rel="stylesheet" href="./assets/css/studio.css">
+  <link rel="stylesheet" href="./assets/css/responsive.css">
+
+  <script type="module"
+          src="./assets/js/main.js"></script>
+</head>
+
+<body>
+
+  <!-- =====================================
+       ENCABEZADO PRINCIPAL
+  ====================================== -->
+
+  <header class="app-header">
+
+    <div class="brand">
+
+      <div class="brand-icon" aria-hidden="true">
+        <span class="brand-lens"></span>
+      </div>
+
+      <div class="brand-text">
+        <h1>StereoVision <span>Studio 3D</span></h1>
+        <p>ESTEREOSCOPÍA · VISUALIZACIÓN · CALIBRACIÓN</p>
+      </div>
+
+    </div>
+
+    <div class="header-actions">
+
+      <span class="system-status">
+        <span class="status-dot"></span>
+        Studio listo
+      </span>
+
+      <button
+        id="btn-home"
+        class="btn btn-outline"
+        type="button"
+        hidden
+      >
+        <span aria-hidden="true">⌂</span>
+        Inicio
+      </button>
+
+    </div>
+
+  </header>
+
+
+  <!-- =====================================
+       PANTALLA INICIAL
+  ====================================== -->
+
+  <main id="home-screen" class="home-screen">
+
+    <section class="home-intro">
+
+      <div class="eyebrow">
+        PLATAFORMA DE EDICIÓN ESTEREOSCÓPICA
+      </div>
+
+      <h2>
+        Tu espacio para explorar
+        <span>la tercera dimensión.</span>
+      </h2>
+
+      <p>
+        Importa, visualiza y calibra contenido
+        estereoscópico desde tu navegador.
+        Selecciona un espacio de trabajo
+        para comenzar.
+      </p>
+
+    </section>
+
+
+    <!-- SELECCIÓN DE MÓDULOS -->
+
+    <section
+      class="module-selection"
+      aria-labelledby="modules-title"
+    >
+
+      <div class="section-heading">
+
+        <div>
+          <span class="section-kicker">ESPACIOS DE TRABAJO</span>
+          <h3 id="modules-title">Selecciona un módulo</h3>
+        </div>
+
+        <span class="section-count">
+          03 MÓDULOS DISPONIBLES
+        </span>
+
+      </div>
+
+
+      <div class="modules-grid">
+
+        <!-- MÓDULO 01: ANAGLIFO -->
+
+        <article class="module-card anaglyph-card">
+
+          <div class="card-top">
+
+            <span class="module-number">01 / 03</span>
+
+            <span class="module-type">
+              IMAGEN 3D
+            </span>
+
+          </div>
+
+          <div class="module-art anaglyph-art"
+               aria-hidden="true">
+
+            <div class="anaglyph-shape">
+              <div class="anaglyph-red"></div>
+              <div class="anaglyph-cyan"></div>
+              <div class="anaglyph-center"></div>
+            </div>
+
+          </div>
+
+          <div class="module-content">
+
+            <h4>Anaglifo 3D</h4>
+
+            <p>
+              Visualiza imágenes rojo-cian y
+              personaliza su brillo, contraste
+              y escala.
+            </p>
+
+            <div class="feature-tags">
+              <span>ROJO / CIAN</span>
+              <span>BRILLO</span>
+              <span>CONTRASTE</span>
+            </div>
+
+          </div>
+
+          <button
+            class="btn btn-module"
+            type="button"
+            data-module="anaglyph"
+          >
+            Abrir editor
+            <span aria-hidden="true">↗</span>
+          </button>
+
+        </article>
+
+
+        <!-- MÓDULO 02: IMAGEN SBS -->
+
+        <article class="module-card sbs-card">
+
+          <div class="card-top">
+
+            <span class="module-number">02 / 03</span>
+
+            <span class="module-type">
+              IMAGEN ESTÉREO
+            </span>
+
+          </div>
+
+          <div class="module-art sbs-art"
+               aria-hidden="true">
+
+            <div class="sbs-illustration">
+
+              <div class="sbs-eye">
+                <span class="sbs-orbit left-orbit"></span>
+                <small>L</small>
+              </div>
+
+              <div class="sbs-eye">
+                <span class="sbs-orbit right-orbit"></span>
+                <small>R</small>
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="module-content">
+
+            <h4>Imagen SBS</h4>
+
+            <p>
+              Explora imágenes Side-by-Side,
+              ajusta las perspectivas y
+              calibra la visualización 3D.
+            </p>
+
+            <div class="feature-tags">
+              <span>LEFT / RIGHT</span>
+              <span>CALIBRACIÓN</span>
+              <span>VR</span>
+            </div>
+
+          </div>
+
+          <button
+            class="btn btn-module"
+            type="button"
+            data-module="sbs-image"
+          >
+            Abrir editor
+            <span aria-hidden="true">↗</span>
+          </button>
+
+        </article>
+
+
+        <!-- MÓDULO 03: VIDEO SBS -->
+
+        <article class="module-card video-card">
+
+          <div class="card-top">
+
+            <span class="module-number">03 / 03</span>
+
+            <span class="module-type">
+              VIDEO ESTÉREO
+            </span>
+
+          </div>
+
+          <div class="module-art video-art"
+               aria-hidden="true">
+
+            <div class="video-illustration">
+
+              <span class="video-eye"></span>
+
+              <div class="play-symbol">
+                ▶
+              </div>
+
+              <span class="video-eye"></span>
+
+            </div>
+
+            <div class="video-timeline"></div>
+
+          </div>
+
+          <div class="module-content">
+
+            <h4>Video SBS</h4>
+
+            <p>
+              Reproduce videos estereoscópicos,
+              controla la reproducción y
+              ajusta la profundidad visual.
+            </p>
+
+            <div class="feature-tags">
+              <span>MP4</span>
+              <span>REPRODUCCIÓN</span>
+              <span>VR</span>
+            </div>
+
+          </div>
+
+          <button
+            class="btn btn-module"
+            type="button"
+            data-module="sbs-video"
+          >
+            Abrir editor
+            <span aria-hidden="true">↗</span>
+          </button>
+
+        </article>
+
+      </div>
+
+    </section>
+
+
+    <!-- INFORMACIÓN INFERIOR -->
+
+    <section class="home-info">
+
+      <div class="info-icon" aria-hidden="true">✦</div>
+
+      <div>
+        <strong>Tu contenido permanece en tu dispositivo.</strong>
+        <p>
+          Los archivos se procesan localmente
+          en el navegador. La edición no modifica
+          tus archivos originales.
+        </p>
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- =====================================
+       ESPACIO DE TRABAJO / STUDIO
+       Se activará mediante JavaScript
+  ====================================== -->
+
+  <section
+    id="studio-screen"
+    class="studio-screen"
+    aria-label="Espacio de trabajo"
+    hidden
+  >
+
+    <!-- BARRA SUPERIOR DEL EDITOR -->
+
+    <div class="studio-toolbar">
+
+      <div class="studio-breadcrumb">
+        <span>StereoVision</span>
+        <span class="breadcrumb-divider">/</span>
+        <strong id="current-module-name">
+          Editor
+        </strong>
+      </div>
+
+      <div class="studio-toolbar-actions">
+
+        <span id="file-status" class="file-status">
+          Sin archivo
+        </span>
+
+        <button
+          id="btn-reset"
+          class="btn btn-secondary"
+          type="button"
+          disabled
+        >
+          Restablecer
+        </button>
+
+        <button
+          id="btn-vr"
+          class="btn btn-primary"
+          type="button"
+          hidden
+          disabled
+        >
+          Modo VR
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- DISTRIBUCIÓN PRINCIPAL -->
+
+    <div class="studio-layout">
+
+      <!-- PANEL IZQUIERDO -->
+
+      <aside
+        class="studio-sidebar"
+        aria-label="Herramientas de edición"
+      >
+
+        <div class="panel-heading">
+          <span>HERRAMIENTAS</span>
+          <span>✦</span>
+        </div>
+
+
+        <!-- IMPORTACIÓN -->
+
+        <div class="tool-section">
+
+          <h3>Contenido multimedia</h3>
+
+          <p class="tool-description">
+            Selecciona un archivo compatible
+            con el módulo actual.
+          </p>
+
+          <input
+            id="media-input"
+            class="visually-hidden"
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,.mp4"
+            aria-label="Seleccionar archivo multimedia"
+          >
+
+          <button
+            id="btn-import"
+            class="btn btn-import"
+            type="button"
+          >
+            + Importar archivo
+          </button>
+
+          <div id="file-information"
+               class="file-information">
+            Ningún archivo seleccionado
+          </div>
+
+        </div>
+
+
+        <!-- HERRAMIENTAS DINÁMICAS -->
+
+        <div
+          id="module-tools"
+          class="module-tools"
+        >
+
+          <div class="tool-placeholder">
+            <span>◈</span>
+            <p>
+              Las herramientas de edición
+              aparecerán aquí.
+            </p>
+          </div>
+
+        </div>
+
+      </aside>
+
+
+      <!-- VISUALIZADOR CENTRAL -->
+
+      <div class="studio-main">
+
+        <div class="viewport-header">
+
+          <div class="viewport-label">
+            <span class="viewport-indicator"></span>
+            VISTA PREVIA
+          </div>
+
+          <span id="viewport-mode">
+            SIN CONTENIDO
+          </span>
+
+        </div>
+
+
+        <div
+          id="viewport"
+          class="studio-viewport"
+        >
+
+          <div
+            id="viewport-empty"
+            class="viewport-empty"
+          >
+
+            <div class="empty-icon">
+              ◈
+            </div>
+
+            <h3>Tu espacio de visualización</h3>
+
+            <p>
+              Importa un archivo multimedia
+              para comenzar a trabajar.
+            </p>
+
+          </div>
+
+
+          <!-- Los módulos renderizarán aquí -->
+
+          <div
+            id="media-renderer"
+            class="media-renderer"
+          ></div>
+
+        </div>
+
+
+        <!-- CONTROLES INFERIORES -->
+
+        <div
+          id="media-controls"
+          class="media-controls"
+        ></div>
+
+
+        <!-- BARRA DE ESTADO -->
+
+        <div class="studio-statusbar">
+
+          <span id="active-file-name">
+            Sin archivo activo
+          </span>
+
+          <span id="studio-message" role="status" aria-live="polite">
+            Studio preparado
+          </span>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =====================================
+       VISOR VR
+  ====================================== -->
+
+  <section
+    id="vr-screen"
+    class="vr-screen"
+    aria-label="Visor de realidad virtual"
+    hidden
+  >
+
+    <div id="vr-container" class="vr-container"></div>
+
+    <button
+      id="btn-exit-vr"
+      class="btn-exit-vr"
+      type="button"
+    >
+      Salir de VR
+    </button>
+
+    <div id="vr-orientation-message"
+         class="vr-orientation-message"
+         hidden>
+      Gira tu teléfono horizontalmente
+      para mejorar la visualización.
+    </div>
+
+  </section>
+
+
+  <!-- =====================================
+       PIE DE PÁGINA
+  ====================================== -->
+
+  <footer class="app-footer">
+
+    <span>
+      StereoVision Studio 3D
+    </span>
+
+    <span>
+      Laboratorio de Estereoscopía · Tema 2
+    </span>
+
+    <span>
+      Proyecto académico
+    </span>
+
+  </footer>
+
+</body>
+</html>

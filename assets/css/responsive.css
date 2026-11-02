@@ -1,0 +1,437 @@
+
+/* ==========================================
+   STEREOVISION STUDIO 3D
+   DISEÑO RESPONSIVO
+   ========================================== */
+
+/* ==========================================
+   PANTALLAS MEDIANAS
+   ========================================== */
+
+@media (max-width: 1200px) {
+
+  .studio-layout {
+    grid-template-columns: 270px minmax(0, 1fr);
+  }
+
+  .studio-toolbar {
+    padding: 12px 18px;
+  }
+
+  .tool-section,
+  .tool-group {
+    padding: 20px 17px;
+  }
+
+  .studio-viewport {
+    min-height: 400px;
+  }
+
+}
+
+/* ==========================================
+   TABLETAS
+   ========================================== */
+
+@media (max-width: 900px) {
+
+  .studio-layout {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .studio-main {
+    grid-row: 1;
+  }
+
+  .studio-sidebar {
+    grid-row: 2;
+
+    overflow: visible;
+
+    border-right: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .studio-viewport {
+    min-height: 420px;
+    height: 55vh;
+    flex: none;
+  }
+
+  .panel-heading {
+    min-height: 45px;
+  }
+
+  .module-tools {
+    display: block;
+  }
+
+  .tool-group {
+    padding: 20px 25px;
+  }
+
+  .studio-toolbar-actions {
+    gap: 8px;
+  }
+
+  .media-controls {
+    padding: 12px 15px;
+  }
+
+}
+
+/* ==========================================
+   CELULARES
+   ========================================== */
+
+@media (max-width: 600px) {
+
+  /* HEADER */
+
+  .app-header {
+    gap: 10px;
+    padding: 12px 15px;
+  }
+
+  .brand {
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .brand-icon {
+    width: 37px;
+    height: 37px;
+    flex-shrink: 0;
+  }
+
+  .brand-text h1 {
+    font-size: 13px;
+  }
+
+  .brand-text p {
+    font-size: 6px;
+    letter-spacing: .8px;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  #btn-home {
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+
+  /* STUDIO */
+
+  .studio-screen {
+    min-height: 100dvh;
+  }
+
+  .studio-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+
+    gap: 12px;
+    padding: 13px 15px;
+  }
+
+  .studio-breadcrumb {
+    font-size: 11px;
+  }
+
+  .studio-toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 7px;
+  }
+
+  .studio-toolbar-actions .btn {
+    padding: 9px 11px;
+    font-size: 11px;
+  }
+
+  .file-status {
+    font-size: 10px;
+  }
+
+  /* VISUALIZADOR */
+
+  .viewport-header {
+    min-height: 43px;
+    padding: 0 13px;
+  }
+
+  .viewport-label,
+  #viewport-mode {
+    font-size: 9px;
+  }
+
+  .studio-viewport {
+    height: 44vh;
+    min-height: 250px;
+    max-height: 520px;
+  }
+
+  .empty-icon {
+    width: 65px;
+    height: 65px;
+
+    margin-bottom: 15px;
+    font-size: 33px;
+  }
+
+  .viewport-empty h3 {
+    font-size: 17px;
+  }
+
+  .viewport-empty p {
+    font-size: 12px;
+  }
+
+  /* HERRAMIENTAS */
+
+  .panel-heading {
+    padding: 0 16px;
+  }
+
+  .tool-section,
+  .tool-group {
+    padding: 20px 16px;
+  }
+
+  .tool-control input[type="range"],
+  .studio-range {
+    height: 7px;
+    touch-action: pan-y;
+  }
+
+  .tool-control input[type="range"]::-webkit-slider-thumb,
+  .studio-range::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tool-control input[type="range"]::-moz-range-thumb,
+  .studio-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* VIDEO */
+
+  .media-controls {
+    justify-content: center;
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .video-control-button {
+    min-width: 42px;
+    height: 42px;
+  }
+
+  .video-progress {
+    flex-basis: 100%;
+    order: 2;
+  }
+
+  .video-volume {
+    width: 65px;
+  }
+
+  .video-time {
+    font-size: 10px;
+  }
+
+  /* ESTADO */
+
+  .studio-statusbar {
+    padding: 10px 12px;
+    font-size: 9px;
+  }
+
+  /* FOOTER */
+
+  .app-footer {
+    padding: 18px 12px;
+  }
+
+}
+
+/* ==========================================
+   CELULARES PEQUEÑOS
+   ========================================== */
+
+@media (max-width: 380px) {
+
+  .brand-text h1 {
+    font-size: 12px;
+  }
+
+  .brand-text p {
+    display: none;
+  }
+
+  .studio-toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .studio-viewport {
+    min-height: 220px;
+  }
+
+  .file-status {
+    flex-basis: 100%;
+  }
+
+}
+
+/* ==========================================
+   CELULAR EN HORIZONTAL
+   ========================================== */
+
+@media (
+  max-height: 500px
+) and (
+  orientation: landscape
+) {
+
+  .studio-toolbar {
+    min-height: 48px;
+    padding: 7px 15px;
+  }
+
+  .studio-viewport {
+    height: 65vh;
+    min-height: 190px;
+    max-height: none;
+  }
+
+  .viewport-empty {
+    padding: 15px;
+  }
+
+  .viewport-empty h3 {
+    font-size: 15px;
+  }
+
+  .empty-icon {
+    width: 48px;
+    height: 48px;
+
+    margin-bottom: 10px;
+    font-size: 25px;
+  }
+
+  .vr-screen,
+  .vr-container {
+    width: 100vw;
+    height: 100dvh;
+  }
+
+  .btn-exit-vr {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+}
+
+/* ==========================================
+   MODO VR EN VERTICAL
+   ========================================== */
+
+@media (orientation: portrait) {
+
+  .vr-screen:not([hidden])
+  .vr-orientation-message:not([hidden]) {
+    display: flex;
+  }
+
+}
+
+/* ==========================================
+   MODO VR EN HORIZONTAL
+   ========================================== */
+
+@media (orientation: landscape) {
+
+  .vr-orientation-message {
+    display: none !important;
+  }
+
+  .vr-container {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr);
+  }
+
+  .vr-eye {
+    height: 100%;
+  }
+
+}
+
+/* ==========================================
+   PANTALLAS TÁCTILES
+   ========================================== */
+
+@media (pointer: coarse) {
+
+  .btn,
+  .tool-button,
+  .btn-exit-vr,
+  .video-control-button {
+    touch-action: manipulation;
+  }
+
+  .btn-import {
+    min-height: 48px;
+  }
+
+  .tool-button {
+    min-height: 44px;
+  }
+
+}
+
+/* ==========================================
+   PANTALLAS GRANDES
+   ========================================== */
+
+@media (min-width: 1600px) {
+
+  .studio-layout {
+    grid-template-columns: 340px minmax(0, 1fr);
+  }
+
+  .studio-viewport {
+    min-height: 650px;
+  }
+
+  .tool-section,
+  .tool-group {
+    padding: 28px;
+  }
+
+  .viewport-empty h3 {
+    font-size: 24px;
+  }
+
+}
+
+/* ==========================================
+   ACCESIBILIDAD
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .module-card,
+  .btn,
+  .tool-button,
+  .video-control-button {
+    transition: none !important;
+  }
+
+}
