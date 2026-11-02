@@ -1,7 +1,7 @@
 
 /* ==========================================
    STEREOVISION STUDIO 3D
-   VISOR VR PARA GOOGLE CARDBOARD
+   VISOR VR MEJORADO PARA GOOGLE CARDBOARD
    ========================================== */
 
 import {
@@ -14,22 +14,46 @@ import {
   getActiveModule
 } from "./navigation.js";
 
+
+// ==========================================
+// CONFIGURACION
+// ==========================================
+
+const VR_MODULES = ["sbs-image", "sbs-video"];
+
+const CONTROLS_HIDE_DELAY = 2000;
+
+const VR_CSS_PATH = "./assets/css/vr-controls.css";
+
+
+// ==========================================
+// REFERENCIAS HTML
+// ==========================================
+
 const elements = {
   studio: document.getElementById("studio-screen"),
   vr: document.getElementById("vr-screen"),
   container: document.getElementById("vr-container"),
+
   enter: document.getElementById("btn-vr"),
   exit: document.getElementById("btn-exit-vr"),
+
   orientation: document.getElementById(
     "vr-orientation-message"
   ),
+
   renderer: document.getElementById("media-renderer"),
   message: document.getElementById("studio-message")
 };
 
+
+// ==========================================
+// ESTADO DEL VISOR
+// ==========================================
+
 let initialized = false;
 let active = false;
-let operationId = 0;
+let sessionId = 0;
 
 let canvas = null;
 let context = null;
@@ -38,31 +62,38 @@ let sourceImage = null;
 let sourceVideo = null;
 let sourceObjectURL = null;
 
-let frameId = null;
-let frameType = null;
+let previousVideoParent = null;
+let previousVideoSibling = null;
+let previousVideoLoop = false;
+
 let resizeObserver = null;
 
-let previousVideoParent = null;
+let frameRequest = null;
+let frameRequestType = null;
+
+let hideControlsTimer = null;
+let controlsOverlay = null;
+
+let playbackError = false;
 
 
 // ==========================================
-// COMPROBAR MÓDULOS
+// UTILIDADES
 // ==========================================
 
 function supportsVR() {
-  return [
-    "sbs-image",
-    "sbs-video"
-  ].includes(getActiveModule());
+  return VR_MODULES.includes(getActiveModule());
 }
 
 
-// ==========================================
-// MENSAJES
-// ==========================================
+function isVideoModule() {
+  return getActiveModule() === "sbs-video";
+}
+
 
 function showMessage(message, error = false) {
   elements.message.textContent = message;
+
   elements.message.className = error
     ? "studio-message-error"
     : "studio-message-success";
@@ -70,43 +101,344 @@ function showMessage(message, error = false) {
 
 
 // ==========================================
-// ORIENTACIÓN
+// CARGAR CSS DEL VISOR
+// ==========================================
+
+function loadVRStyles() {
+  if (document.getElementById("vr-controls-css")) {
+    return;
+  }
+
+  const link = document.createElement("link");
+
+  link.id = "vr-controls-css";
+  link.rel = "stylesheet";
+  link.href = VR_CSS_PATH;
+
+  document.head.appendChild(link);
+}
+
+
+// ==========================================
+// ORIENTACION DEL TELEFONO
 // ==========================================
 
 function updateOrientation() {
   if (!active) return;
 
-  const portrait =
-    window.matchMedia("(orientation: portrait)").matches;
+  const portrait = window.matchMedia(
+    "(orientation: portrait)"
+  ).matches;
 
   elements.orientation.hidden = !portrait;
 }
 
 
 // ==========================================
-// CANCELAR FOTOGRAMA PROGRAMADO
+// LIBERAR TEMPORIZADOR
 // ==========================================
 
-function cancelFrame() {
-  if (frameId === null) return;
-
-  if (
-    frameType === "video" &&
-    sourceVideo &&
-    typeof sourceVideo.cancelVideoFrameCallback === "function"
-  ) {
-    sourceVideo.cancelVideoFrameCallback(frameId);
-  } else if (frameType === "animation") {
-    cancelAnimationFrame(frameId);
+function clearControlsTimer() {
+  if (hideControlsTimer !== null) {
+    clearTimeout(hideControlsTimer);
+    hideControlsTimer = null;
   }
-
-  frameId = null;
-  frameType = null;
 }
 
 
 // ==========================================
-// TAMAÑO DE PANTALLA
+// MOSTRAR CONTROLES FLOTANTES
+// ==========================================
+
+function showControls() {
+  if (!active || !controlsOverlay) return;
+
+  clearControlsTimer();
+
+  controlsOverlay.classList.remove(
+    "vr-controls-hidden"
+  );
+
+  controlsOverlay.classList.add(
+    "vr-controls-visible"
+  );
+
+  updatePlaybackButtons();
+
+  hideControlsTimer = setTimeout(() => {
+    if (!active || !controlsOverlay) return;
+
+    controlsOverlay.classList.remove(
+      "vr-controls-visible"
+    );
+
+    controlsOverlay.classList.add(
+      "vr-controls-hidden"
+    );
+
+    hideControlsTimer = null;
+
+  }, CONTROLS_HIDE_DELAY);
+}
+
+
+// ==========================================
+// FORMATO DE TIEMPO
+// ==========================================
+
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return "00:00";
+  }
+
+  const total = Math.floor(seconds);
+
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+
+  return (
+    String(minutes).padStart(2, "0") +
+    ":" +
+    String(secs).padStart(2, "0")
+  );
+}
+
+
+// ==========================================
+// CREAR CONTROLES POR OJO
+// ==========================================
+
+function createEyeControls(eye) {
+  const panel = document.createElement("div");
+
+  panel.className = "vr-eye-controls";
+  panel.dataset.eye = eye;
+
+  panel.innerHTML = `
+    <div class="vr-control-panel">
+
+      <div class="vr-control-title">
+        VIDEO SBS 3D
+      </div>
+
+      <div class="vr-control-buttons">
+
+        <button
+          class="vr-control-button vr-play-toggle"
+          type="button"
+          aria-label="Pausar o reproducir"
+        >
+          ❚❚
+        </button>
+
+        <button
+          class="vr-control-button vr-mute-toggle"
+          type="button"
+          aria-label="Silenciar o activar sonido"
+        >
+          🔊
+        </button>
+
+      </div>
+
+      <div class="vr-control-time">
+        00:00 / 00:00
+      </div>
+
+    </div>
+  `;
+
+  panel.querySelector(".vr-play-toggle")
+    .addEventListener("click", event => {
+      event.stopPropagation();
+
+      togglePlayback();
+      showControls();
+    });
+
+  panel.querySelector(".vr-mute-toggle")
+    .addEventListener("click", event => {
+      event.stopPropagation();
+
+      toggleMute();
+      showControls();
+    });
+
+  return panel;
+}
+
+
+// ==========================================
+// CONSTRUIR CAPA DE CONTROLES
+// ==========================================
+
+function createControlsOverlay() {
+  if (!sourceVideo) return;
+
+  controlsOverlay = document.createElement("div");
+
+  controlsOverlay.id = "vr-controls-overlay";
+
+  controlsOverlay.className =
+    "vr-controls-overlay vr-controls-visible";
+
+  controlsOverlay.setAttribute(
+    "aria-label",
+    "Controles de reproducción VR"
+  );
+
+  controlsOverlay.appendChild(
+    createEyeControls("left")
+  );
+
+  controlsOverlay.appendChild(
+    createEyeControls("right")
+  );
+
+  elements.vr.appendChild(controlsOverlay);
+
+  controlsOverlay.addEventListener(
+    "pointerdown",
+    event => {
+      if (!event.target.closest("button")) {
+        showControls();
+      }
+    }
+  );
+
+  updatePlaybackButtons();
+  showControls();
+}
+
+
+// ==========================================
+// ACTUALIZAR CONTROLES FLOTANTES
+// ==========================================
+
+function updatePlaybackButtons() {
+  if (!sourceVideo || !controlsOverlay) return;
+
+  const playing =
+    !sourceVideo.paused && !sourceVideo.ended;
+
+  const muted =
+    sourceVideo.muted || sourceVideo.volume === 0;
+
+  const duration = Number.isFinite(
+    sourceVideo.duration
+  )
+    ? sourceVideo.duration
+    : 0;
+
+  const timeText =
+    `${formatTime(sourceVideo.currentTime)} / ` +
+    `${formatTime(duration)}`;
+
+  controlsOverlay.querySelectorAll(
+    ".vr-play-toggle"
+  ).forEach(button => {
+    button.textContent = playing ? "❚❚" : "▶";
+
+    button.setAttribute(
+      "aria-label",
+      playing ? "Pausar video" : "Reproducir video"
+    );
+  });
+
+  controlsOverlay.querySelectorAll(
+    ".vr-mute-toggle"
+  ).forEach(button => {
+    button.textContent = muted ? "🔇" : "🔊";
+
+    button.setAttribute(
+      "aria-label",
+      muted ? "Activar sonido" : "Silenciar"
+    );
+  });
+
+  controlsOverlay.querySelectorAll(
+    ".vr-control-time"
+  ).forEach(label => {
+    label.textContent = timeText;
+  });
+}
+
+
+// ==========================================
+// REPRODUCIR O PAUSAR
+// ==========================================
+
+async function togglePlayback() {
+  if (!sourceVideo) return;
+
+  const currentVideo = sourceVideo;
+
+  if (!currentVideo.paused) {
+    currentVideo.pause();
+    updatePlaybackButtons();
+    return;
+  }
+
+  try {
+    await currentVideo.play();
+
+  } catch (error) {
+    if (active && sourceVideo === currentVideo) {
+      playbackError = true;
+      showControls();
+
+      console.warn(
+        "[VR] No se pudo reproducir:",
+        error
+      );
+    }
+  }
+
+  updatePlaybackButtons();
+}
+
+
+// ==========================================
+// SILENCIAR O ACTIVAR SONIDO
+// ==========================================
+
+function toggleMute() {
+  if (!sourceVideo) return;
+
+  sourceVideo.muted = !sourceVideo.muted;
+
+  updatePlaybackButtons();
+}
+
+
+// ==========================================
+// DETENER BUCLE DE RENDERIZADO
+// ==========================================
+
+function stopFrameLoop() {
+  if (frameRequest === null) return;
+
+  if (
+    frameRequestType === "video" &&
+    sourceVideo &&
+    typeof sourceVideo.cancelVideoFrameCallback ===
+      "function"
+  ) {
+    sourceVideo.cancelVideoFrameCallback(
+      frameRequest
+    );
+
+  } else if (frameRequestType === "animation") {
+    cancelAnimationFrame(frameRequest);
+  }
+
+  frameRequest = null;
+  frameRequestType = null;
+}
+
+
+// ==========================================
+// TAMAÑO DEL CANVAS
 // ==========================================
 
 function resizeCanvas() {
@@ -164,6 +496,8 @@ function drawEye({
   height,
   offsetX,
   offsetY,
+  panX,
+  panY,
   scale
 }) {
   const fit = Math.min(
@@ -179,18 +513,25 @@ function drawEye({
   const x =
     targetX +
     (eyeWidth - drawWidth) / 2 +
-    offsetX;
+    offsetX +
+    panX;
 
   const y =
     (height - drawHeight) / 2 +
-    offsetY;
+    offsetY +
+    panY;
 
   context.save();
 
-  // Cada perspectiva permanece dentro
-  // de la región de su ojo.
   context.beginPath();
-  context.rect(targetX, 0, eyeWidth, height);
+
+  context.rect(
+    targetX,
+    0,
+    eyeWidth,
+    height
+  );
+
   context.clip();
 
   context.drawImage(
@@ -210,13 +551,16 @@ function drawEye({
 
 
 // ==========================================
-// RENDERIZAR VISTAS VR
+// DIBUJAR CONTENIDO VR
 // ==========================================
 
 function drawVR() {
   if (!active || !canvas || !context) return;
 
-  const source = sourceImage?.source || sourceVideo;
+  // Para imagen, sourceImage es el
+  // HTMLImageElement directamente.
+  // Para video, utilizamos el reproductor.
+  const source = sourceImage || sourceVideo;
 
   if (!source) return;
 
@@ -225,7 +569,8 @@ function drawVR() {
     (
       sourceVideo.readyState <
         HTMLMediaElement.HAVE_CURRENT_DATA ||
-      !sourceVideo.videoWidth
+      !sourceVideo.videoWidth ||
+      !sourceVideo.videoHeight
     )
   ) {
     return;
@@ -239,11 +584,11 @@ function drawVR() {
 
   const sourceWidth = sourceVideo
     ? sourceVideo.videoWidth
-    : sourceImage.width;
+    : sourceImage.naturalWidth;
 
   const sourceHeight = sourceVideo
     ? sourceVideo.videoHeight
-    : sourceImage.height;
+    : sourceImage.naturalHeight;
 
   if (sourceWidth < 2 || sourceHeight < 1) {
     return;
@@ -252,11 +597,19 @@ function drawVR() {
   const halfSource = sourceWidth / 2;
   const eyeWidth = width / 2;
 
-  const { calibration } = getState();
+  const calibration = getState().calibration;
 
   const scale = calibration.scale / 100;
-  const horizontal = calibration.horizontal / 2;
-  const vertical = calibration.vertical / 2;
+
+  const horizontal =
+    (Number(calibration.horizontal) || 0) / 2;
+
+  const vertical = sourceVideo
+    ? 0
+    : (Number(calibration.vertical) || 0) / 2;
+
+  const panX = Number(calibration.panX) || 0;
+  const panY = Number(calibration.panY) || 0;
 
   const leftSource = calibration.swapEyes
     ? halfSource
@@ -269,10 +622,10 @@ function drawVR() {
   context.clearRect(0, 0, width, height);
 
   context.fillStyle = "#000000";
+
   context.fillRect(0, 0, width, height);
 
   // OJO IZQUIERDO
-
   drawEye({
     source,
     sourceX: leftSource,
@@ -283,11 +636,12 @@ function drawVR() {
     height,
     offsetX: -horizontal,
     offsetY: -vertical,
+    panX,
+    panY,
     scale
   });
 
   // OJO DERECHO
-
   drawEye({
     source,
     sourceX: rightSource,
@@ -298,13 +652,15 @@ function drawVR() {
     height,
     offsetX: horizontal,
     offsetY: vertical,
+    panX,
+    panY,
     scale
   });
 }
 
 
 // ==========================================
-// PROGRAMAR FOTOGRAMAS DE VIDEO
+// PROGRAMAR FOTOGRAMAS
 // ==========================================
 
 function scheduleFrame() {
@@ -313,7 +669,7 @@ function scheduleFrame() {
     !sourceVideo ||
     sourceVideo.paused ||
     sourceVideo.ended ||
-    frameId !== null
+    frameRequest !== null
   ) {
     return;
   }
@@ -321,8 +677,8 @@ function scheduleFrame() {
   const currentVideo = sourceVideo;
 
   const callback = () => {
-    frameId = null;
-    frameType = null;
+    frameRequest = null;
+    frameRequestType = null;
 
     if (
       !active ||
@@ -332,6 +688,7 @@ function scheduleFrame() {
     }
 
     drawVR();
+    updatePlaybackButtons();
     scheduleFrame();
   };
 
@@ -339,56 +696,63 @@ function scheduleFrame() {
     typeof currentVideo.requestVideoFrameCallback ===
     "function"
   ) {
-    frameType = "video";
-    frameId = currentVideo.requestVideoFrameCallback(
-      callback
-    );
+    frameRequestType = "video";
+
+    frameRequest =
+      currentVideo.requestVideoFrameCallback(
+        callback
+      );
+
   } else {
-    frameType = "animation";
-    frameId = requestAnimationFrame(callback);
+    frameRequestType = "animation";
+
+    frameRequest =
+      requestAnimationFrame(callback);
   }
 }
 
 
 // ==========================================
-// CARGAR IMAGEN ORIGINAL
+// CARGAR IMAGEN PARA VR
 // ==========================================
 
 async function loadVRImage(file) {
-  sourceObjectURL = URL.createObjectURL(file);
+  const url = URL.createObjectURL(file);
+
+  sourceObjectURL = url;
 
   const image = new Image();
-
-  image.src = sourceObjectURL;
+  image.src = url;
 
   try {
     await image.decode();
+
   } catch {
     throw new Error(
-      "No fue posible preparar la imagen para VR."
+      "No se pudo decodificar la imagen para VR."
     );
   }
 
-  if (!image.naturalWidth || !image.naturalHeight) {
+  if (
+    !image.naturalWidth ||
+    !image.naturalHeight
+  ) {
     throw new Error(
       "La imagen no tiene dimensiones válidas."
     );
   }
 
-  return {
-    source: image,
-    width: image.naturalWidth,
-    height: image.naturalHeight
-  };
+  return image;
 }
 
 
 // ==========================================
-// PREPARAR FUENTE DE VIDEO
+// REUTILIZAR VIDEO DEL EDITOR
 // ==========================================
 
 function attachVideo() {
-  const video = elements.renderer.querySelector("video");
+  const video =
+    elements.renderer.querySelector("video");
 
   if (!video) {
     throw new Error(
@@ -397,105 +761,233 @@ function attachVideo() {
   }
 
   previousVideoParent = video.parentElement;
+  previousVideoSibling = video.nextSibling;
+
+  previousVideoLoop = video.loop;
+
   sourceVideo = video;
 
-  // Reutilizar el mismo reproductor:
-  // no se reinicia el tiempo ni el audio.
+  // Bucle activo solamente durante VR.
+  video.loop = true;
+  video.playsInline = true;
+
   elements.container.appendChild(video);
 
-  video.playsInline = true;
   video.style.position = "absolute";
   video.style.width = "1px";
   video.style.height = "1px";
   video.style.opacity = "0";
   video.style.pointerEvents = "none";
+
+  return video;
 }
 
 
 // ==========================================
-// PREPARAR CANVAS VR
+// CREAR CANVAS VR
 // ==========================================
 
 function createCanvas() {
   canvas = document.createElement("canvas");
+
   canvas.id = "vr-canvas";
 
   canvas.setAttribute(
     "aria-label",
-    "Visualización estereoscópica VR"
+    "Visualizador estereoscópico VR"
   );
 
-  canvas.style.width = "100%";
-  canvas.style.height = "100%";
-  canvas.style.maxWidth = "none";
-  canvas.style.maxHeight = "none";
-  canvas.style.display = "block";
-  canvas.style.gridColumn = "1 / -1";
-  canvas.style.gridRow = "1";
-  canvas.style.touchAction = "none";
-
-  context = canvas.getContext("2d", {
-    alpha: false
-  });
+  context = canvas.getContext(
+    "2d",
+    { alpha: false }
+  );
 
   if (!context) {
     throw new Error(
-      "No fue posible crear el visualizador VR."
+      "No se pudo crear el Canvas VR."
     );
   }
 
   elements.container.appendChild(canvas);
-}
 
-
-// ==========================================
-// SINCRONIZAR EVENTOS DE VIDEO
-// ==========================================
-
-function onVideoPlay() {
-  drawVR();
-  scheduleFrame();
-}
-
-function onVideoPause() {
-  cancelFrame();
-  drawVR();
-}
-
-function onVideoSeek() {
-  drawVR();
-}
-
-function connectVideoEvents() {
-  if (!sourceVideo) return;
-
-  sourceVideo.addEventListener("play", onVideoPlay);
-  sourceVideo.addEventListener("pause", onVideoPause);
-  sourceVideo.addEventListener("seeked", onVideoSeek);
-  sourceVideo.addEventListener("loadeddata", onVideoSeek);
-}
-
-function disconnectVideoEvents() {
-  if (!sourceVideo) return;
-
-  sourceVideo.removeEventListener("play", onVideoPlay);
-  sourceVideo.removeEventListener("pause", onVideoPause);
-  sourceVideo.removeEventListener("seeked", onVideoSeek);
-  sourceVideo.removeEventListener(
-    "loadeddata",
-    onVideoSeek
+  // Tocar la imagen muestra los controles.
+  canvas.addEventListener(
+    "pointerdown",
+    () => {
+      if (sourceVideo) {
+        showControls();
+      }
+    }
   );
 }
 
 
 // ==========================================
-// LIBERAR RECURSOS VR
+// EVENTOS DEL VIDEO
+// ==========================================
+
+function onVideoPlay() {
+  playbackError = false;
+
+  updatePlaybackButtons();
+  drawVR();
+  scheduleFrame();
+}
+
+
+function onVideoPause() {
+  stopFrameLoop();
+
+  updatePlaybackButtons();
+  drawVR();
+}
+
+
+function onVideoSeek() {
+  drawVR();
+  updatePlaybackButtons();
+}
+
+
+function onVideoTimeUpdate() {
+  updatePlaybackButtons();
+}
+
+
+function onVideoError() {
+  stopFrameLoop();
+
+  showControls();
+
+  console.error(
+    "[VR] Error de reproducción o decodificación."
+  );
+}
+
+
+function connectVideoEvents() {
+  if (!sourceVideo) return;
+
+  sourceVideo.addEventListener(
+    "play",
+    onVideoPlay
+  );
+
+  sourceVideo.addEventListener(
+    "pause",
+    onVideoPause
+  );
+
+  sourceVideo.addEventListener(
+    "seeked",
+    onVideoSeek
+  );
+
+  sourceVideo.addEventListener(
+    "loadeddata",
+    onVideoSeek
+  );
+
+  sourceVideo.addEventListener(
+    "timeupdate",
+    onVideoTimeUpdate
+  );
+
+  sourceVideo.addEventListener(
+    "error",
+    onVideoError
+  );
+}
+
+
+function disconnectVideoEvents() {
+  if (!sourceVideo) return;
+
+  sourceVideo.removeEventListener(
+    "play",
+    onVideoPlay
+  );
+
+  sourceVideo.removeEventListener(
+    "pause",
+    onVideoPause
+  );
+
+  sourceVideo.removeEventListener(
+    "seeked",
+    onVideoSeek
+  );
+
+  sourceVideo.removeEventListener(
+    "loadeddata",
+    onVideoSeek
+  );
+
+  sourceVideo.removeEventListener(
+    "timeupdate",
+    onVideoTimeUpdate
+  );
+
+  sourceVideo.removeEventListener(
+    "error",
+    onVideoError
+  );
+}
+
+
+// ==========================================
+// INTENTAR REPRODUCCION AUTOMATICA
+// ==========================================
+
+function startVideoInVR() {
+  if (!sourceVideo) return;
+
+  const currentVideo = sourceVideo;
+
+  // Entrar a VR proviene de un clic real.
+  // Intentar reproducir directamente aquí
+  // ayuda con las reglas de navegadores móviles.
+  try {
+    const result = currentVideo.play();
+
+    if (result && typeof result.catch === "function") {
+      result.catch(error => {
+        if (
+          active &&
+          sourceVideo === currentVideo
+        ) {
+          playbackError = true;
+          showControls();
+
+          console.warn(
+            "[VR] Reproducción automática bloqueada:",
+            error
+          );
+        }
+      });
+    }
+
+  } catch (error) {
+    playbackError = true;
+    showControls();
+
+    console.warn(
+      "[VR] Reproducción no permitida:",
+      error
+    );
+  }
+}
+
+
+// ==========================================
+// LIMPIAR RECURSOS DEL VISOR
 // ==========================================
 
 function cleanupVR() {
-  operationId++;
+  sessionId++;
 
-  cancelFrame();
+  clearControlsTimer();
+  stopFrameLoop();
 
   if (resizeObserver) {
     resizeObserver.disconnect();
@@ -504,13 +996,35 @@ function cleanupVR() {
 
   disconnectVideoEvents();
 
-  // Devolver el reproductor al editor original.
-  if (sourceVideo && previousVideoParent) {
-    previousVideoParent.appendChild(sourceVideo);
+  if (sourceVideo) {
+    // Al salir de VR siempre se pausa.
+    sourceVideo.pause();
+
+    // Restaurar la configuración del editor.
+    sourceVideo.loop = previousVideoLoop;
+
+    if (previousVideoParent) {
+      if (
+        previousVideoSibling &&
+        previousVideoSibling.parentNode ===
+          previousVideoParent
+      ) {
+        previousVideoParent.insertBefore(
+          sourceVideo,
+          previousVideoSibling
+        );
+      } else {
+        previousVideoParent.appendChild(
+          sourceVideo
+        );
+      }
+    }
   }
 
   sourceVideo = null;
   previousVideoParent = null;
+  previousVideoSibling = null;
+
   sourceImage = null;
 
   if (sourceObjectURL) {
@@ -521,12 +1035,15 @@ function cleanupVR() {
   canvas = null;
   context = null;
 
+  controlsOverlay = null;
+  playbackError = false;
+
   elements.container.replaceChildren();
 }
 
 
 // ==========================================
-// ENTRAR EN MODO VR
+// ENTRAR AL MODO VR
 // ==========================================
 
 export async function enterVR() {
@@ -534,7 +1051,10 @@ export async function enterVR() {
 
   const state = getState();
 
-  if (!state.file || state.status !== "ready") {
+  if (
+    !state.file ||
+    state.status !== "ready"
+  ) {
     showMessage(
       "Importa primero una imagen o video SBS.",
       true
@@ -546,6 +1066,8 @@ export async function enterVR() {
 
   active = true;
 
+  const currentSession = ++sessionId;
+
   elements.studio.hidden = true;
   elements.vr.hidden = false;
 
@@ -553,77 +1075,89 @@ export async function enterVR() {
 
   updateOrientation();
 
-  const currentOperation = ++operationId;
+  try {
+    // El video debe iniciar desde la
+    // interacción que activó Modo VR.
+    if (moduleId === "sbs-video") {
+      attachVideo();
+      connectVideoEvents();
 
-  // Pedir pantalla completa directamente
-  // durante la interacción del usuario.
-  // Si no se permite, el visor seguirá
-  // funcionando dentro de la página.
-  if (elements.vr.requestFullscreen) {
-    try {
-      const fullscreenPromise =
-        elements.vr.requestFullscreen();
+      createCanvas();
+      createControlsOverlay();
 
-      Promise.resolve(fullscreenPromise).catch(() => {
+      startVideoInVR();
+    }
+
+    // Solicitar fullscreen sin esperar
+    // operaciones asíncronas previas.
+    if (elements.vr.requestFullscreen) {
+      try {
+        const result =
+          elements.vr.requestFullscreen();
+
+        Promise.resolve(result).catch(() => {
+          console.info(
+            "[VR] Se utilizará el visor dentro de la página."
+          );
+        });
+
+      } catch {
         console.info(
           "[VR] Pantalla completa no disponible."
         );
-      });
-    } catch {
-      console.info(
-        "[VR] Se utilizará el visor en página."
-      );
-    }
-  }
-
-  try {
-    if (moduleId === "sbs-image") {
-      sourceImage = await loadVRImage(state.file);
-
-      if (
-        currentOperation !== operationId ||
-        !active
-      ) {
-        return;
       }
     }
 
-    if (moduleId === "sbs-video") {
-      attachVideo();
+    if (moduleId === "sbs-image") {
+      const image = await loadVRImage(state.file);
+
+      if (
+        !active ||
+        currentSession !== sessionId
+      ) {
+        return;
+      }
+
+      sourceImage = image;
+      createCanvas();
     }
 
-    createCanvas();
+    if (
+      !active ||
+      currentSession !== sessionId
+    ) {
+      return;
+    }
 
     resizeObserver = new ResizeObserver(() => {
       drawVR();
     });
 
-    resizeObserver.observe(elements.container);
+    resizeObserver.observe(
+      elements.container
+    );
 
     drawVR();
 
-    if (sourceVideo) {
-      connectVideoEvents();
-
-      // La reproducción conserva su estado.
-      // Si estaba pausada, continuará pausada.
-      if (!sourceVideo.paused) {
-        scheduleFrame();
-      }
+    if (sourceVideo && !sourceVideo.paused) {
+      scheduleFrame();
     }
 
     console.log(
-      "[VR] Visor activo:",
+      "[VR] Visor mejorado activo:",
       moduleId
     );
 
   } catch (error) {
+    if (currentSession !== sessionId) return;
+
     console.error("[VR]", error);
 
     await exitVR();
 
     showMessage(
-      error.message || "No fue posible activar VR.",
+      error.message ||
+      "No fue posible activar el modo VR.",
       true
     );
   }
@@ -653,42 +1187,43 @@ export async function exitVR() {
       await document.exitFullscreen();
     } catch {
       console.info(
-        "[VR] No se pudo cerrar pantalla completa."
+        "[VR] El navegador cerró pantalla completa."
       );
     }
   }
 
   showMessage(
-    "Has regresado al Studio. La calibración se conservó."
+    "Has salido de VR. Se conservaron el archivo y la calibración."
   );
 
-  console.log("[VR] Regreso al editor.");
+  console.log(
+    "[VR] Regreso al editor; video pausado."
+  );
 }
 
 
 // ==========================================
-// CAMBIOS DE PANTALLA COMPLETA
+// ACTUALIZAR AL CAMBIAR ORIENTACION
 // ==========================================
 
-function handleFullscreenChange() {
-  // Si el navegador salió de fullscreen,
-  // mantenemos la interfaz VR disponible.
-  // El usuario puede salir con el botón.
-  if (active) {
-    updateOrientation();
-    drawVR();
-  }
+function handleOrientationChange() {
+  if (!active) return;
+
+  updateOrientation();
+  drawVR();
 }
 
 
 // ==========================================
-// INICIALIZAR
+// INICIALIZAR VISOR
 // ==========================================
 
 export function initVRViewer() {
   if (initialized) return;
 
   initialized = true;
+
+  loadVRStyles();
 
   elements.enter.addEventListener(
     "click",
@@ -707,19 +1242,20 @@ export function initVRViewer() {
 
   window.addEventListener(
     "orientationchange",
-    () => {
-      updateOrientation();
-      drawVR();
-    }
+    handleOrientationChange
   );
 
   document.addEventListener(
     "fullscreenchange",
-    handleFullscreenChange
+    () => {
+      if (active) {
+        updateOrientation();
+        drawVR();
+      }
+    }
   );
 
-  // Ejecutar antes de los manejadores normales
-  // de cambio de módulo para devolver el video.
+  // Limpieza al abandonar un módulo.
   document.addEventListener(
     "studio:before-module-change",
     () => {
@@ -730,8 +1266,7 @@ export function initVRViewer() {
     { capture: true }
   );
 
-  // Dibujar nuevamente ante cambios
-  // de calibración, incluso en pausa.
+  // Reflejar cambios de calibración.
   subscribe(state => {
     if (!active) return;
 
@@ -747,6 +1282,6 @@ export function initVRViewer() {
   });
 
   console.log(
-    "[StereoVision] Visor VR inicializado."
+    "[StereoVision] VR con controles flotantes inicializado."
   );
 }

@@ -1,7 +1,7 @@
 
 /* ==========================================
    STEREOVISION STUDIO 3D
-   MODULO VIDEO SBS
+   VIDEO SBS CON GESTOS TACTILES
    ========================================== */
 
 import {
@@ -15,21 +15,90 @@ import {
   getActiveModule
 } from "../components/navigation.js";
 
+import {
+  initTouchGestures
+} from "../components/calibration.js";
+
+
+// ==========================================
+// CONFIGURACION
+// ==========================================
+
 const MODULE_ID = "sbs-video";
 
+const CONTROLS = [
+  {
+    id: "scale",
+    label: "Zoom / Escala",
+    min: 50,
+    max: 200,
+    unit: "%"
+  },
+  {
+    id: "horizontal",
+    label: "Desplazamiento estereoscópico",
+    min: -60,
+    max: 60,
+    unit: " px"
+  },
+  {
+    id: "panX",
+    label: "Mover video horizontalmente",
+    min: -250,
+    max: 250,
+    unit: " px"
+  },
+  {
+    id: "panY",
+    label: "Mover video verticalmente",
+    min: -250,
+    max: 250,
+    unit: " px"
+  }
+];
+
+
+// ==========================================
+// REFERENCIAS HTML
+// ==========================================
+
 const elements = {
-  tools: document.getElementById("module-tools"),
-  renderer: document.getElementById("media-renderer"),
-  controls: document.getElementById("media-controls"),
-  reset: document.getElementById("btn-reset"),
-  vr: document.getElementById("btn-vr"),
-  message: document.getElementById("studio-message")
+  tools: document.getElementById(
+    "module-tools"
+  ),
+
+  renderer: document.getElementById(
+    "media-renderer"
+  ),
+
+  controls: document.getElementById(
+    "media-controls"
+  ),
+
+  reset: document.getElementById(
+    "btn-reset"
+  ),
+
+  vr: document.getElementById(
+    "btn-vr"
+  ),
+
+  message: document.getElementById(
+    "studio-message"
+  )
 };
+
+
+// ==========================================
+// ESTADO DEL REPRODUCTOR
+// ==========================================
 
 let video = null;
 let canvas = null;
 let context = null;
+
 let resizeObserver = null;
+let destroyGestures = null;
 
 let frameRequest = null;
 let frameRequestType = null;
@@ -39,7 +108,7 @@ let currentVolume = 1;
 
 
 // ==========================================
-// COMPROBAR MODULO
+// FUNCIONES AUXILIARES
 // ==========================================
 
 function isActive() {
@@ -47,9 +116,22 @@ function isActive() {
 }
 
 
-// ==========================================
-// MENSAJES
-// ==========================================
+function isVRActive() {
+  return getState().vrActive;
+}
+
+
+function getCalibration() {
+  const calibration = getState().calibration;
+
+  return {
+    ...calibration,
+
+    panX: Number(calibration.panX) || 0,
+    panY: Number(calibration.panY) || 0
+  };
+}
+
 
 function showMessage(message, type = "success") {
   elements.message.textContent = message;
@@ -68,20 +150,31 @@ function showMessage(message, type = "success") {
 // ==========================================
 
 function formatTime(seconds) {
-  if (!Number.isFinite(seconds) || seconds < 0) {
+  if (
+    !Number.isFinite(seconds) ||
+    seconds < 0
+  ) {
     return "00:00";
   }
 
   const total = Math.floor(seconds);
 
   const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
+  const minutes = Math.floor(
+    (total % 3600) / 60
+  );
+
   const secs = total % 60;
 
-  const pad = value => String(value).padStart(2, "0");
+  const pad = value =>
+    String(value).padStart(2, "0");
 
   if (hours > 0) {
-    return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`;
+    return (
+      `${pad(hours)}:` +
+      `${pad(minutes)}:` +
+      `${pad(secs)}`
+    );
   }
 
   return `${pad(minutes)}:${pad(secs)}`;
@@ -89,90 +182,106 @@ function formatTime(seconds) {
 
 
 // ==========================================
-// CONTROLES DE CALIBRACION
+// CREAR DESLIZADORES
 // ==========================================
 
-function sliderHTML(id, label, min, max, value, unit) {
+function createSlider(config) {
+  const calibration = getCalibration();
+
+  const value = calibration[config.id];
+
   return `
     <div class="tool-control">
+
       <div class="control-heading">
 
-        <label for="video-${id}">
-          ${label}
+        <label for="video-${config.id}">
+          ${config.label}
         </label>
 
         <output
-          id="video-${id}-value"
+          id="video-${config.id}-value"
           class="control-value"
-          for="video-${id}"
+          for="video-${config.id}"
         >
-          ${value}${unit}
+          ${value}${config.unit}
         </output>
 
       </div>
 
       <input
-        type="range"
+        id="video-${config.id}"
         class="studio-range"
-        id="video-${id}"
-        min="${min}"
-        max="${max}"
+        type="range"
+        min="${config.min}"
+        max="${config.max}"
         step="1"
         value="${value}"
       >
+
     </div>
   `;
 }
 
 
+// ==========================================
+// PANEL DE HERRAMIENTAS
+// ==========================================
+
 function renderTools() {
-  const calibration = getState().calibration;
+  const calibration = getCalibration();
 
   elements.tools.innerHTML = `
     <div class="tool-group">
 
       <div class="tool-group-title">
-        <span>CALIBRACION DE VIDEO</span>
-        <span aria-hidden="true">◈</span>
+        <span>CALIBRACIÓN ESTEREOSCÓPICA</span>
       </div>
 
       <p class="tool-description">
-        Modifica ambas perspectivas durante
-        la reproduccion sin alterar el MP4.
+        Ajusta ambas perspectivas sin
+        modificar el archivo original.
       </p>
 
-      ${sliderHTML(
-        "scale",
-        "Zoom / Escala",
-        50,
-        200,
-        calibration.scale,
-        "%"
-      )}
-
-      ${sliderHTML(
-        "horizontal",
-        "Desplazamiento horizontal",
-        -60,
-        60,
-        calibration.horizontal,
-        " px"
-      )}
+      ${CONTROLS.slice(0, 2)
+        .map(createSlider)
+        .join("")}
 
     </div>
 
     <div class="tool-group">
 
       <div class="tool-group-title">
-        <span>CONFIGURACION</span>
+        <span>POSICIÓN Y GESTOS</span>
+      </div>
+
+      <p class="tool-description">
+        Arrastra con un dedo para mover
+        ambas vistas al mismo tiempo.
+        Pellizca con dos dedos para
+        acercar o alejar el video.
+      </p>
+
+      ${CONTROLS.slice(2)
+        .map(createSlider)
+        .join("")}
+
+    </div>
+
+    <div class="tool-group">
+
+      <div class="tool-group-title">
+        <span>CONFIGURACIÓN DE OJOS</span>
       </div>
 
       <label class="studio-checkbox">
+
         <input
           id="video-swap-eyes"
           type="checkbox"
           ${calibration.swapEyes ? "checked" : ""}
         >
+
         Intercambiar ojos
       </label>
 
@@ -185,38 +294,64 @@ function renderTools() {
         class="tool-button"
         type="button"
       >
-        ↺ Restablecer calibracion
+        ↺ Restablecer calibración
       </button>
 
     </div>
 
     <div class="tool-group">
+
       <div class="file-information">
-        <strong>Video SBS 3D</strong>
+
+        <strong>Gestos táctiles activados</strong>
+
         <p>
-          Ambas perspectivas provienen
-          del mismo fotograma, por lo que
-          permanecen sincronizadas.
+          Un dedo: desplazar ambas vistas.
         </p>
+
+        <p>
+          Dos dedos: aumentar o reducir
+          la escala.
+        </p>
+
+        <p>
+          Los gestos no modifican la
+          sincronización del video.
+        </p>
+
       </div>
+
     </div>
   `;
 
-  ["scale", "horizontal"].forEach(id => {
-    document.getElementById(`video-${id}`)
-      .addEventListener("input", event => {
+  // ========================================
+  // EVENTOS DE DESLIZADORES
+  // ========================================
 
-        updateCalibration({
-          [id]: Number(event.target.value)
-        });
+  CONTROLS.forEach(config => {
+    const input = document.getElementById(
+      `video-${config.id}`
+    );
 
-        updateCalibrationControls();
-        drawFrame();
+    input.addEventListener("input", () => {
+      if (!video || !isActive()) return;
+
+      updateCalibration({
+        [config.id]: Number(input.value)
       });
+
+      updateCalibrationControls();
+      drawFrame();
+    });
   });
+
+  // ========================================
+  // INTERCAMBIAR OJOS
+  // ========================================
 
   document.getElementById("video-swap-eyes")
     .addEventListener("change", event => {
+      if (!video || !isActive()) return;
 
       updateCalibration({
         swapEyes: event.target.checked
@@ -225,31 +360,45 @@ function renderTools() {
       drawFrame();
     });
 
+  // ========================================
+  // RESTABLECER
+  // ========================================
+
   document.getElementById("video-reset")
-    .addEventListener("click", restoreDefaults);
+    .addEventListener(
+      "click",
+      restoreDefaults
+    );
 }
 
 
 // ==========================================
-// SINCRONIZAR VALORES
+// SINCRONIZAR DESLIZADORES
 // ==========================================
 
 function updateCalibrationControls() {
-  const { calibration } = getState();
+  if (!isActive()) return;
 
-  for (const id of ["scale", "horizontal"]) {
-    const input = document.getElementById(`video-${id}`);
-    const output = document.getElementById(
-      `video-${id}-value`
+  const calibration = getCalibration();
+
+  CONTROLS.forEach(config => {
+    const input = document.getElementById(
+      `video-${config.id}`
     );
 
-    if (!input || !output) continue;
+    const output = document.getElementById(
+      `video-${config.id}-value`
+    );
 
-    input.value = calibration[id];
+    if (!input || !output) return;
+
+    const value = calibration[config.id];
+
+    input.value = value;
 
     output.textContent =
-      `${calibration[id]}${id === "scale" ? "%" : " px"}`;
-  }
+      `${value}${config.unit}`;
+  });
 
   const swap = document.getElementById(
     "video-swap-eyes"
@@ -262,7 +411,7 @@ function updateCalibrationControls() {
 
 
 // ==========================================
-// CONSTRUIR REPRODUCTOR
+// CONTROLES DE REPRODUCCION
 // ==========================================
 
 function renderVideoControls() {
@@ -297,7 +446,10 @@ function renderVideoControls() {
       +10
     </button>
 
-    <span id="video-time" class="video-time">
+    <span
+      id="video-time"
+      class="video-time"
+    >
       00:00 / 00:00
     </span>
 
@@ -335,32 +487,50 @@ function renderVideoControls() {
   `;
 
   document.getElementById("video-play")
-    .addEventListener("click", togglePlayback);
+    .addEventListener(
+      "click",
+      togglePlayback
+    );
 
   document.getElementById("video-back")
-    .addEventListener("click", () => seekRelative(-10));
+    .addEventListener(
+      "click",
+      () => seekRelative(-10)
+    );
 
   document.getElementById("video-forward")
-    .addEventListener("click", () => seekRelative(10));
+    .addEventListener(
+      "click",
+      () => seekRelative(10)
+    );
 
   document.getElementById("video-progress")
     .addEventListener("input", event => {
-      if (!video || !Number.isFinite(video.duration)) {
+      if (
+        !video ||
+        !Number.isFinite(video.duration) ||
+        video.duration <= 0
+      ) {
         return;
       }
 
       video.currentTime =
-        (Number(event.target.value) / 1000) *
+        Number(event.target.value) /
+        1000 *
         video.duration;
 
       updatePlaybackUI();
+      drawFrame();
     });
 
   document.getElementById("video-volume")
     .addEventListener("input", event => {
       if (!video) return;
 
-      video.volume = Number(event.target.value);
+      video.volume = Number(
+        event.target.value
+      );
+
       video.muted = video.volume === 0;
 
       if (video.volume > 0) {
@@ -390,7 +560,7 @@ function renderVideoControls() {
 
 
 // ==========================================
-// ACTUALIZAR CONTROLES MULTIMEDIA
+// ACTUALIZAR REPRODUCTOR
 // ==========================================
 
 function updatePlaybackUI() {
@@ -416,81 +586,113 @@ function updatePlaybackUI() {
     "video-mute"
   );
 
-  if (playButton) {
-    const playing = !video.paused && !video.ended;
+  const playing =
+    !video.paused && !video.ended;
 
-    playButton.textContent = playing ? "❚❚" : "▶";
+  if (playButton) {
+    playButton.textContent =
+      playing ? "❚❚" : "▶";
 
     playButton.setAttribute(
       "aria-label",
       playing ? "Pausar" : "Reproducir"
     );
 
-    playButton.title = playing ? "Pausar" : "Reproducir";
+    playButton.title =
+      playing ? "Pausar" : "Reproducir";
   }
 
-  const duration = Number.isFinite(video.duration)
-    ? video.duration
-    : 0;
+  const duration =
+    Number.isFinite(video.duration)
+      ? video.duration
+      : 0;
 
   if (time) {
     time.textContent =
-      `${formatTime(video.currentTime)} / ${formatTime(duration)}`;
+      `${formatTime(video.currentTime)} / ` +
+      `${formatTime(duration)}`;
   }
 
   if (progress) {
     progress.value = duration > 0
-      ? Math.round(video.currentTime / duration * 1000)
+      ? Math.round(
+          video.currentTime /
+          duration *
+          1000
+        )
       : 0;
   }
 
   if (volume) {
-    volume.value = video.muted ? 0 : video.volume;
+    volume.value =
+      video.muted ? 0 : video.volume;
   }
 
   if (mute) {
+    const muted =
+      video.muted || video.volume === 0;
+
     mute.textContent =
-      video.muted || video.volume === 0 ? "🔇" : "🔊";
+      muted ? "🔇" : "🔊";
 
     mute.setAttribute(
       "aria-label",
-      video.muted ? "Activar sonido" : "Silenciar"
+      muted
+        ? "Activar sonido"
+        : "Silenciar"
     );
   }
 }
 
 
 // ==========================================
-// REPRODUCCION
+// REPRODUCIR Y PAUSAR
 // ==========================================
 
 async function togglePlayback() {
   if (!video) return;
 
-  if (!video.paused && !video.ended) {
-    video.pause();
+  const currentVideo = video;
+
+  if (
+    !currentVideo.paused &&
+    !currentVideo.ended
+  ) {
+    currentVideo.pause();
     return;
   }
 
   try {
-    await video.play();
+    await currentVideo.play();
+
   } catch (error) {
+    if (video !== currentVideo) {
+      return;
+    }
+
     showMessage(
-      "El navegador no permitió reproducir el video. Pulsa Reproducir nuevamente.",
+      "No se pudo iniciar el video. " +
+      "Pulsa Reproducir nuevamente.",
       "error"
     );
 
-    console.error("[Video SBS] Reproducción:", error);
+    console.error(
+      "[Video SBS] Error de reproducción:",
+      error
+    );
   }
 }
 
 
 // ==========================================
-// BUSQUEDA EN EL VIDEO
+// ADELANTAR Y RETROCEDER
 // ==========================================
 
 function seekRelative(seconds) {
-  if (!video || !Number.isFinite(video.duration)) {
+  if (
+    !video ||
+    !Number.isFinite(video.duration)
+  ) {
     return;
   }
 
@@ -507,7 +709,7 @@ function seekRelative(seconds) {
 
 
 // ==========================================
-// AJUSTAR CANVAS
+// DIMENSIONES DEL CANVAS
 // ==========================================
 
 function resizeCanvas() {
@@ -516,31 +718,39 @@ function resizeCanvas() {
   const rect =
     elements.renderer.getBoundingClientRect();
 
-  if (!rect.width || !rect.height) {
+  if (
+    rect.width <= 0 ||
+    rect.height <= 0
+  ) {
     return null;
   }
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = Math.min(
+    window.devicePixelRatio || 1,
+    2
+  );
 
-  const width = Math.max(
+  const pixelWidth = Math.max(
     1,
     Math.round(rect.width * dpr)
   );
 
-  const height = Math.max(
+  const pixelHeight = Math.max(
     1,
     Math.round(rect.height * dpr)
   );
 
   if (
-    canvas.width !== width ||
-    canvas.height !== height
+    canvas.width !== pixelWidth ||
+    canvas.height !== pixelHeight
   ) {
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
   }
 
-  context.setTransform(dpr, 0, 0, dpr, 0, 0);
+  context.setTransform(
+    dpr, 0, 0, dpr, 0, 0
+  );
 
   return {
     width: rect.width,
@@ -550,19 +760,24 @@ function resizeCanvas() {
 
 
 // ==========================================
-// DIBUJAR UNA VISTA
+// DIBUJAR UNA PERSPECTIVA
 // ==========================================
 
-function drawEye(
+function drawEye({
   sourceX,
-  targetX,
+  destinationX,
   eyeWidth,
   height,
   horizontalOffset,
+  panX,
+  panY,
   scale
-) {
-  const sourceWidth = video.videoWidth / 2;
-  const sourceHeight = video.videoHeight;
+}) {
+  const sourceWidth =
+    video.videoWidth / 2;
+
+  const sourceHeight =
+    video.videoHeight;
 
   const fit = Math.min(
     eyeWidth / sourceWidth,
@@ -571,20 +786,33 @@ function drawEye(
 
   const factor = fit * scale;
 
-  const drawWidth = sourceWidth * factor;
-  const drawHeight = sourceHeight * factor;
+  const drawWidth =
+    sourceWidth * factor;
+
+  const drawHeight =
+    sourceHeight * factor;
 
   const x =
-    targetX +
+    destinationX +
     (eyeWidth - drawWidth) / 2 +
-    horizontalOffset;
+    horizontalOffset +
+    panX;
 
-  const y = (height - drawHeight) / 2;
+  const y =
+    (height - drawHeight) / 2 +
+    panY;
 
   context.save();
 
   context.beginPath();
-  context.rect(targetX, 0, eyeWidth, height);
+
+  context.rect(
+    destinationX,
+    0,
+    eyeWidth,
+    height
+  );
+
   context.clip();
 
   context.drawImage(
@@ -604,16 +832,18 @@ function drawEye(
 
 
 // ==========================================
-// RENDERIZAR FOTOGRAMA SBS
+// DIBUJAR FOTOGRAMA SBS
 // ==========================================
 
 function drawFrame() {
   if (
     !isActive() ||
+    isVRActive() ||
     !video ||
     !canvas ||
     !context ||
-    video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+    video.readyState <
+      HTMLMediaElement.HAVE_CURRENT_DATA ||
     !video.videoWidth ||
     !video.videoHeight
   ) {
@@ -625,62 +855,119 @@ function drawFrame() {
   if (!dimensions) return;
 
   const { width, height } = dimensions;
+
   const eyeWidth = width / 2;
 
-  const { calibration } = getState();
+  const calibration = getCalibration();
+
+  const sourceHalf =
+    video.videoWidth / 2;
 
   const leftSource = calibration.swapEyes
-    ? video.videoWidth / 2
+    ? sourceHalf
     : 0;
 
   const rightSource = calibration.swapEyes
     ? 0
-    : video.videoWidth / 2;
+    : sourceHalf;
 
-  const horizontal = calibration.horizontal / 2;
-  const scale = calibration.scale / 100;
+  const horizontal =
+    calibration.horizontal / 2;
 
-  context.clearRect(0, 0, width, height);
+  const scale =
+    calibration.scale / 100;
+
+  const panX = calibration.panX;
+  const panY = calibration.panY;
+
+  context.clearRect(
+    0, 0, width, height
+  );
 
   context.fillStyle = "#05060c";
-  context.fillRect(0, 0, width, height);
 
-  drawEye(
-    leftSource,
-    0,
-    eyeWidth,
-    height,
-    -horizontal,
-    scale
+  context.fillRect(
+    0, 0, width, height
   );
 
-  drawEye(
-    rightSource,
-    eyeWidth,
+  // ========================================
+  // PERSPECTIVA IZQUIERDA
+  // ========================================
+
+  drawEye({
+    sourceX: leftSource,
+    destinationX: 0,
     eyeWidth,
     height,
-    horizontal,
+    horizontalOffset: -horizontal,
+    panX,
+    panY,
     scale
-  );
+  });
+
+  // ========================================
+  // PERSPECTIVA DERECHA
+  // ========================================
+
+  drawEye({
+    sourceX: rightSource,
+    destinationX: eyeWidth,
+    eyeWidth,
+    height,
+    horizontalOffset: horizontal,
+    panX,
+    panY,
+    scale
+  });
+
+  // ========================================
+  // SEPARADOR
+  // ========================================
 
   context.fillStyle = "#292d42";
-  context.fillRect(eyeWidth - 0.5, 0, 1, height);
 
-  context.font = "600 12px Inter, sans-serif";
+  context.fillRect(
+    eyeWidth - 0.5,
+    0,
+    1,
+    height
+  );
+
+  // ========================================
+  // ETIQUETAS
+  // ========================================
+
+  context.font =
+    "600 12px Inter, sans-serif";
+
   context.textBaseline = "top";
 
-  context.fillStyle = "rgba(0,0,0,.65)";
-  context.fillRect(12, 12, 32, 27);
-  context.fillRect(eyeWidth + 12, 12, 32, 27);
+  context.fillStyle =
+    "rgba(0, 0, 0, 0.65)";
 
-  context.fillStyle = "#fff";
-  context.fillText("L", 23, 19);
-  context.fillText("R", eyeWidth + 23, 19);
+  context.fillRect(12, 12, 32, 27);
+
+  context.fillRect(
+    eyeWidth + 12,
+    12,
+    32,
+    27
+  );
+
+  context.fillStyle = "#ffffff";
+
+  context.fillText(
+    "L", 23, 19
+  );
+
+  context.fillText(
+    "R", eyeWidth + 23, 19
+  );
 }
 
 
 // ==========================================
-// CANCELAR RENDERIZADO PROGRAMADO
+// CANCELAR FOTOGRAMAS
 // ==========================================
 
 function stopFrameLoop() {
@@ -688,10 +975,17 @@ function stopFrameLoop() {
 
   if (
     frameRequestType === "video" &&
-    video?.cancelVideoFrameCallback
+    video &&
+    typeof video.cancelVideoFrameCallback ===
+      "function"
   ) {
-    video.cancelVideoFrameCallback(frameRequest);
-  } else if (frameRequestType === "animation") {
+    video.cancelVideoFrameCallback(
+      frameRequest
+    );
+
+  } else if (
+    frameRequestType === "animation"
+  ) {
     cancelAnimationFrame(frameRequest);
   }
 
@@ -701,13 +995,14 @@ function stopFrameLoop() {
 
 
 // ==========================================
-// PROGRAMAR SIGUIENTE FOTOGRAMA
+// CICLO DE RENDERIZADO
 // ==========================================
 
 function scheduleFrame() {
   if (
     !video ||
     !isActive() ||
+    isVRActive() ||
     video.paused ||
     video.ended ||
     frameRequest !== null
@@ -723,7 +1018,8 @@ function scheduleFrame() {
 
     if (
       video !== currentVideo ||
-      !isActive()
+      !isActive() ||
+      isVRActive()
     ) {
       return;
     }
@@ -733,35 +1029,94 @@ function scheduleFrame() {
     scheduleFrame();
   };
 
-  if (typeof video.requestVideoFrameCallback === "function") {
+  if (
+    typeof currentVideo.requestVideoFrameCallback ===
+    "function"
+  ) {
     frameRequestType = "video";
 
-    frameRequest = video.requestVideoFrameCallback(
-      callback
-    );
+    frameRequest =
+      currentVideo.requestVideoFrameCallback(
+        callback
+      );
+
   } else {
     frameRequestType = "animation";
 
-    frameRequest = requestAnimationFrame(
-      callback
-    );
+    frameRequest =
+      requestAnimationFrame(callback);
   }
 }
 
 
 // ==========================================
-// RESTABLECER AJUSTES
+// ACTIVAR GESTOS TACTILES
+// ==========================================
+
+function enableTouchGestures() {
+  if (!canvas) return;
+
+  if (destroyGestures) {
+    destroyGestures();
+    destroyGestures = null;
+  }
+
+  destroyGestures = initTouchGestures({
+    element: canvas,
+
+    minScale: 50,
+    maxScale: 200,
+    maxPan: 250,
+
+    getTransform: () => {
+      const calibration = getCalibration();
+
+      return {
+        scale: calibration.scale,
+        panX: calibration.panX,
+        panY: calibration.panY
+      };
+    },
+
+    onChange: values => {
+      if (
+        !isActive() ||
+        isVRActive() ||
+        !video
+      ) {
+        return;
+      }
+
+      updateCalibration(values);
+
+      updateCalibrationControls();
+
+      // Redibujar inmediatamente.
+      // La reproducción sigue su curso.
+      drawFrame();
+    }
+  });
+}
+
+
+// ==========================================
+// RESTABLECER CALIBRACION
 // ==========================================
 
 function restoreDefaults() {
   if (!isActive() || !video) return;
 
+  // Esta función ahora reemplaza
+  // totalmente los ajustes anteriores,
+  // incluyendo panX y panY.
   resetCalibration();
+
   updateCalibrationControls();
+
   drawFrame();
 
   showMessage(
-    "Calibración restablecida sin reiniciar el video."
+    "Video restablecido a su posición y escala originales."
   );
 }
 
@@ -773,6 +1128,11 @@ function restoreDefaults() {
 function clearVideo() {
   stopFrameLoop();
 
+  if (destroyGestures) {
+    destroyGestures();
+    destroyGestures = null;
+  }
+
   if (resizeObserver) {
     resizeObserver.disconnect();
     resizeObserver = null;
@@ -780,21 +1140,22 @@ function clearVideo() {
 
   if (video) {
     video.pause();
-
-    // El gestor de archivos libera la URL.
-    // Aquí eliminamos solamente las referencias.
   }
 
   video = null;
   canvas = null;
   context = null;
 
+  elements.renderer.classList.remove(
+    "interactive"
+  );
+
+  elements.controls.replaceChildren();
+
   if (isActive()) {
     elements.reset.disabled = true;
     elements.vr.disabled = true;
   }
-
-  elements.controls.replaceChildren();
 }
 
 
@@ -805,11 +1166,16 @@ function clearVideo() {
 function prepareVideo() {
   if (!isActive()) return;
 
+  // Limpiar reproducción anterior
+  // y controles táctiles antiguos.
   clearVideo();
 
   const state = getState();
 
-  if (!state.file || state.status !== "ready") {
+  if (
+    !state.file ||
+    state.status !== "ready"
+  ) {
     return;
   }
 
@@ -826,28 +1192,39 @@ function prepareVideo() {
 
   video = preview;
 
-  // Un solo video para ambas perspectivas.
   video.controls = false;
   video.playsInline = true;
   video.preload = "auto";
 
-  // El video permanece en el DOM como
-  // fuente de los fotogramas del canvas.
+  // Una única fuente de video
+  // sincroniza ambas perspectivas.
   video.style.position = "absolute";
   video.style.width = "1px";
   video.style.height = "1px";
   video.style.opacity = "0";
   video.style.pointerEvents = "none";
 
-  canvas = document.createElement("canvas");
+  canvas =
+    document.createElement("canvas");
+
   canvas.id = "sbs-video-canvas";
 
   canvas.setAttribute(
     "aria-label",
-    "Visualizador de video estereoscópico"
+    "Visualizador de video SBS táctil"
   );
 
-  context = canvas.getContext("2d");
+  canvas.style.display = "block";
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+
+  canvas.style.maxWidth = "none";
+  canvas.style.maxHeight = "none";
+
+  context = canvas.getContext(
+    "2d",
+    { alpha: false }
+  );
 
   if (!context) {
     clearVideo();
@@ -856,19 +1233,26 @@ function prepareVideo() {
       "No se pudo crear el visualizador de video.",
       "error"
     );
+
     return;
   }
 
   elements.renderer.appendChild(canvas);
 
+  // Habilitar eventos táctiles en el canvas.
+  elements.renderer.classList.add(
+    "interactive"
+  );
+
   renderTools();
   renderVideoControls();
 
   elements.reset.disabled = false;
-
-  // Se conectará en la siguiente etapa:
-  // el visor móvil Google Cardboard.
   elements.vr.disabled = false;
+
+  // ========================================
+  // EVENTOS DEL VIDEO
+  // ========================================
 
   video.addEventListener("play", () => {
     updatePlaybackUI();
@@ -877,22 +1261,35 @@ function prepareVideo() {
 
   video.addEventListener("pause", () => {
     stopFrameLoop();
+
     updatePlaybackUI();
     drawFrame();
   });
 
-  video.addEventListener("timeupdate", updatePlaybackUI);
+  video.addEventListener(
+    "timeupdate",
+    updatePlaybackUI
+  );
 
-  video.addEventListener("durationchange", updatePlaybackUI);
+  video.addEventListener(
+    "durationchange",
+    updatePlaybackUI
+  );
 
-  video.addEventListener("volumechange", updatePlaybackUI);
+  video.addEventListener(
+    "volumechange",
+    updatePlaybackUI
+  );
 
   video.addEventListener("seeked", () => {
     drawFrame();
     updatePlaybackUI();
   });
 
-  video.addEventListener("loadeddata", drawFrame);
+  video.addEventListener(
+    "loadeddata",
+    drawFrame
+  );
 
   video.addEventListener("ended", () => {
     stopFrameLoop();
@@ -904,38 +1301,58 @@ function prepareVideo() {
     stopFrameLoop();
 
     showMessage(
-      "Ocurrió un error al decodificar o reproducir el MP4.",
+      "Ocurrió un error durante la reproducción del MP4.",
       "error"
     );
   });
 
-  resizeObserver = new ResizeObserver(() => {
-    drawFrame();
-  });
+  // ========================================
+  // REDIMENSIONAMIENTO
+  // ========================================
 
-  resizeObserver.observe(elements.renderer);
+  resizeObserver = new ResizeObserver(
+    () => {
+      drawFrame();
+    }
+  );
+
+  resizeObserver.observe(
+    elements.renderer
+  );
+
+  // ========================================
+  // HERRAMIENTAS TACTILES
+  // ========================================
+
+  enableTouchGestures();
+
+  updateCalibrationControls();
 
   drawFrame();
 
   showMessage(
-    "Video SBS preparado. Pulsa Reproducir para comenzar."
+    "Video SBS listo. Puedes arrastrar y pellizcar durante la reproducción."
   );
 
   console.log(
-    "[Video SBS] Archivo preparado:",
+    "[Video SBS] Gestos activados:",
     state.fileName
   );
 }
 
 
 // ==========================================
-// INICIALIZAR
+// INICIALIZACION
 // ==========================================
 
 export function initSBSVideo() {
   if (initialized) return;
 
   initialized = true;
+
+  // ========================================
+  // ARCHIVO IMPORTADO
+  // ========================================
 
   document.addEventListener(
     "studio:file-loaded",
@@ -946,6 +1363,10 @@ export function initSBSVideo() {
     }
   );
 
+  // ========================================
+  // RESTABLECER DESDE ENCABEZADO
+  // ========================================
+
   elements.reset.addEventListener(
     "click",
     () => {
@@ -955,15 +1376,29 @@ export function initSBSVideo() {
     }
   );
 
+  // ========================================
+  // CAMBIO DE MODULO
+  // ========================================
+
   document.addEventListener(
     "studio:before-module-change",
     clearVideo
   );
 
-  // Al sustituir un archivo, detener
-  // el renderizado y la reproducción.
+  // ========================================
+  // OBSERVAR ESTADO
+  // ========================================
+
   subscribe(state => {
     if (!video) return;
+
+    // Al entrar a VR, el visor VR
+    // tomará el control del renderizado.
+    // No se pausa el video.
+    if (state.vrActive) {
+      stopFrameLoop();
+      return;
+    }
 
     if (
       state.status === "empty" ||
@@ -977,16 +1412,34 @@ export function initSBSVideo() {
           <div class="tool-placeholder">
             <p>
               Importa un MP4 SBS para
-              activar la reproducción y
-              la calibración.
+              activar reproducción,
+              calibración y gestos táctiles.
             </p>
           </div>
         `;
+      }
+
+      return;
+    }
+
+    // Al regresar de VR, continuar
+    // actualizando la vista del editor.
+    if (
+      isActive() &&
+      state.status === "ready"
+    ) {
+      drawFrame();
+
+      if (
+        !video.paused &&
+        !video.ended
+      ) {
+        scheduleFrame();
       }
     }
   });
 
   console.log(
-    "[StereoVision] Módulo Video SBS inicializado."
+    "[StereoVision] Video SBS táctil inicializado."
   );
 }
