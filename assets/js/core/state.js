@@ -13,6 +13,8 @@ export const DEFAULT_CALIBRATION = Object.freeze({
   scale: 100,
   horizontal: 0,
   vertical: 0,
+  panX: 0,
+  panY: 0,
   brightness: 100,
   contrast: 100,
   swapEyes: false
@@ -332,11 +334,14 @@ export function updateCalibration(updates = {}) {
 // ==========================================
 
 export function resetCalibration() {
-  setState({
+  state = {
+    ...state,
     calibration: {
       ...DEFAULT_CALIBRATION
     }
-  });
+  };
+
+  notify();
 }
 
 
@@ -416,3 +421,4 @@ export function resetState() {
 export function getLensSpacingMm() {
   return state.deviceSettings.lensSpacingMm;
 }
+F

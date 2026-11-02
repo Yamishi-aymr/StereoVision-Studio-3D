@@ -658,22 +658,19 @@ function enableTouchGestures() {
 function restoreDefaults() {
   if (!isActive() || !sourceImage) return;
 
+  // Restablecer todos los valores,
+  // incluyendo zoom, posición y alineación.
   resetCalibration();
 
-  // Los nuevos valores de posicion
-  // tambien deben regresar a cero.
-  // Se establecen explicitamente porque
-  // los valores adicionales se fusionan
-  // con el estado de calibracion actual.
-  updateCalibration({
-    ...DEFAULT_POSITION
-  });
-
+  // Sincronizar todos los controles.
   updateControls();
+
+  // Redibujar ambas perspectivas
+  // en su posición original.
   drawSBS();
 
   showMessage(
-    "Calibración y posición restablecidas."
+    "Imagen restablecida a su posición y escala originales."
   );
 }
 
