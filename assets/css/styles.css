@@ -870,3 +870,153 @@ input:focus-visible {
   }
 
 }
+
+
+/* ==========================================
+   FOOTER - STEREOVISION STUDIO 3D
+   ========================================== */
+
+.studio-footer {
+    width: 100%;
+    margin-top: 60px;
+    padding: 40px 6% 20px;
+
+    background: #090a13;
+
+    border-top: 1px solid rgba(160, 130, 255, 0.18);
+
+    color: #ffffff;
+}
+
+/* CONTENIDO PRINCIPAL */
+
+.footer-content {
+    max-width: 1400px;
+    margin: 0 auto;
+
+    display: grid;
+    grid-template-columns: 1fr 1px 1.5fr;
+
+    gap: 45px;
+    align-items: center;
+}
+
+/* IDENTIDAD */
+
+.footer-brand h3 {
+    margin: 0 0 12px;
+
+    font-size: 23px;
+    font-weight: 800;
+
+    letter-spacing: -0.5px;
+}
+
+.footer-brand h3 span {
+    color: #a78bfa;
+}
+
+.footer-brand p {
+    max-width: 320px;
+
+    color: #9293a8;
+
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+/* SEPARADOR */
+
+.footer-divider {
+    width: 1px;
+    height: 150px;
+
+    background: rgba(255,255,255,0.12);
+}
+
+/* DATOS */
+
+.footer-information {
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 22px 30px;
+}
+
+.footer-item {
+    display: flex;
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+.footer-item span {
+    color: #9293a8;
+
+    font-size: 10px;
+    font-weight: 700;
+
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+}
+
+.footer-item strong {
+    color: #e9e7f5;
+
+    font-size: 13px;
+    font-weight: 500;
+
+    line-height: 1.6;
+}
+
+/* PARTE INFERIOR */
+
+.footer-bottom {
+    max-width: 1400px;
+
+    margin: 35px auto 0;
+    padding-top: 20px;
+
+    border-top: 1px solid rgba(255,255,255,0.09);
+
+    display: flex;
+    justify-content: space-between;
+
+    gap: 15px;
+
+    color: #77788b;
+    font-size: 11px;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 768px) {
+
+    .studio-footer {
+        padding: 32px 22px 18px;
+        margin-top: 40px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 25px;
+    }
+
+    .footer-divider {
+        width: 100%;
+        height: 1px;
+    }
+
+    .footer-information {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+        line-height: 1.6;
+    }
+
+}
